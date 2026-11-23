@@ -1,0 +1,1968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JoVE Protocol Integrator &amp; PMC JATS QA Workbench</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%231e40af'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Georgia,serif' font-size='17' font-weight='bold' fill='white'%3EJ%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --canvas: #f5f5f4;
+      --sheet: #ffffff;
+      --sheet-muted: #f8fafc;
+      --ink: #0f172a;
+      --ink-muted: #475569;
+      --rule: #d6d3d1;
+      --rule-strong: #a8a29e;
+      --cobalt: #1d4ed8;
+      --cobalt-hover: #1e40af;
+      --cobalt-tint: #eff6ff;
+      --cobalt-rule: #bfdbfe;
+      --forest: #065f46;
+      --forest-tint: #ecfdf5;
+      --forest-rule: #a7f3d0;
+      --amber: #92400e;
+      --amber-tint: #fffbeb;
+      --amber-rule: #fde68a;
+      --crimson: #991b1b;
+      --crimson-tint: #fef2f2;
+      --crimson-rule: #fecaca;
+      --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --serif: Georgia, "Times New Roman", serif;
+      --mono: "Cascadia Code", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      background: var(--cobalt);
+      color: #ffffff;
+      padding: 0.5rem 0.9rem;
+      z-index: 100;
+      font-weight: 600;
+    }
+    .skip-link:focus { left: 0.75rem; top: 0.75rem; }
+
+    a { color: var(--cobalt); }
+    button, input, textarea { font-family: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--cobalt);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; animation: none !important; }
+    }
+
+    .btn {
+      border: 1px solid var(--rule-strong);
+      background: var(--sheet);
+      color: var(--ink);
+      border-radius: 4px;
+      padding: 0.46rem 0.85rem;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      transition: background-color 120ms ease, border-color 120ms ease, transform 100ms ease;
+    }
+    .btn:hover { background: var(--sheet-muted); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.6; cursor: wait; transform: none; }
+    .btn-primary {
+      background: var(--cobalt);
+      border-color: var(--cobalt);
+      color: #ffffff;
+    }
+    .btn-primary:hover { background: var(--cobalt-hover); border-color: var(--cobalt-hover); }
+    .btn-ok {
+      background: var(--forest);
+      border-color: var(--forest);
+      color: #ffffff;
+    }
+    .btn-ok:hover { background: #064e3b; }
+    .btn-sm {
+      padding: 0.28rem 0.6rem;
+      font-size: 12px;
+    }
+
+    .alert-banner {
+      display: none;
+      max-width: 1240px;
+      margin: 0.85rem auto 0;
+      padding: 0.65rem 1rem;
+      border-radius: 4px;
+      border: 1px solid var(--crimson-rule);
+      background: var(--crimson-tint);
+      color: var(--crimson);
+      font-size: 13px;
+      font-weight: 600;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .alert-banner.visible { display: flex; }
+
+    /* Landing View */
+    .site-nav {
+      background: var(--sheet);
+      border-bottom: 1px solid var(--rule);
+    }
+    .site-nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0.9rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .wordmark {
+      font-family: var(--serif);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1.25rem;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .nav-links a {
+      color: var(--ink-muted);
+      text-decoration: none;
+    }
+    .nav-links a:hover { color: var(--cobalt); }
+
+    .landing-wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2.25rem 1.5rem 3.5rem;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(320px, 1.08fr) minmax(320px, 0.92fr);
+      gap: 2.25rem;
+      align-items: start;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--rule);
+    }
+    @media (max-width: 920px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 1.75rem; }
+    }
+
+    .hero-copy h1 {
+      font-family: var(--serif);
+      font-size: clamp(1.85rem, 3vw, 2.35rem);
+      line-height: 1.16;
+      letter-spacing: -0.015em;
+      margin: 0 0 0.65rem;
+      color: var(--ink);
+    }
+    .hero-lead {
+      font-size: 14.5px;
+      color: var(--ink-muted);
+      margin: 0 0 1.2rem;
+      max-width: 52ch;
+    }
+    .intake-box {
+      background: var(--sheet);
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      padding: 1.2rem;
+    }
+    .intake-box h2 {
+      margin: 0 0 0.8rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .intake-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.9rem;
+    }
+    @media (max-width: 560px) {
+      .intake-fields { grid-template-columns: 1fr; }
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .field-group input[type="file"] {
+      border: 1px solid var(--rule);
+      background: var(--sheet-muted);
+      border-radius: 4px;
+      padding: 0.45rem;
+      font-size: 12px;
+      font-weight: 400;
+      width: 100%;
+    }
+    .intake-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .intake-hint {
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    .sample-picker {
+      background: var(--sheet);
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .sample-picker-head {
+      padding: 0.85rem 1.1rem;
+      background: var(--sheet-muted);
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .sample-picker-head h2 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .sample-picker-head span {
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+    .sample-list {
+      display: flex;
+      flex-direction: column;
+    }
+    .sample-row {
+      width: 100%;
+      text-align: left;
+      background: var(--sheet);
+      border: 0;
+      border-bottom: 1px solid var(--rule);
+      padding: 0.85rem 1.05rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      transition: background-color 120ms ease, transform 100ms ease;
+    }
+    .sample-row:last-child { border-bottom: 0; }
+    .sample-row:hover { background: var(--cobalt-tint); transform: translateX(2px); }
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .sample-title {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--ink);
+    }
+    .sample-profile {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--cobalt);
+    }
+    .sample-file {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-muted);
+    }
+    .sample-desc {
+      font-size: 12.5px;
+      color: var(--ink-muted);
+      margin: 0;
+    }
+
+    .section-block {
+      padding-top: 2.1rem;
+    }
+    .section-block h2 {
+      font-family: var(--serif);
+      font-size: 1.3rem;
+      margin: 0 0 0.35rem;
+    }
+    .section-block > p {
+      margin: 0 0 1rem;
+      color: var(--ink-muted);
+      max-width: 72ch;
+    }
+    .table-wrap {
+      background: var(--sheet);
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .data-table th, .data-table td {
+      padding: 0.7rem 0.95rem;
+      border-bottom: 1px solid var(--rule);
+      text-align: left;
+      vertical-align: top;
+    }
+    .data-table tr:last-child td { border-bottom: 0; }
+    .data-table th {
+      background: var(--sheet-muted);
+      font-weight: 700;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--ink-muted);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.16rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--rule);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+    .badge-pass, .tier-fix {
+      background: var(--forest-tint);
+      border-color: var(--forest-rule);
+      color: var(--forest);
+    }
+    .badge-review, .tier-review {
+      background: var(--amber-tint);
+      border-color: var(--amber-rule);
+      color: var(--amber);
+    }
+    .badge-fail, .tier-block {
+      background: var(--crimson-tint);
+      border-color: var(--crimson-rule);
+      color: var(--crimson);
+    }
+    .badge-neutral {
+      background: var(--sheet-muted);
+      border-color: var(--rule);
+      color: var(--ink-muted);
+    }
+    .tier-label {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.14rem 0.45rem;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    /* Workbench View */
+    .hidden { display: none !important; }
+
+    .wb-header {
+      background: var(--sheet);
+      border-bottom: 1px solid var(--rule);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.85rem;
+    }
+    .wb-header-left {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .wb-doc-title {
+      font-family: var(--serif);
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 0;
+    }
+    .wb-doc-meta {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-muted);
+    }
+
+    .readiness-bar {
+      background: var(--sheet);
+      border-bottom: 1px solid var(--rule);
+      padding: 0.55rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.45rem 0.6rem;
+      font-size: 12px;
+    }
+    .gate-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.22rem 0.55rem;
+      border-radius: 4px;
+      border: 1px solid var(--rule);
+      background: var(--sheet-muted);
+    }
+    .gate-badge.is-pass {
+      background: var(--forest-tint);
+      border-color: var(--forest-rule);
+    }
+    .gate-badge.is-review {
+      background: var(--amber-tint);
+      border-color: var(--amber-rule);
+    }
+    .gate-badge.is-fail {
+      background: var(--crimson-tint);
+      border-color: var(--crimson-rule);
+    }
+    .gate-name {
+      color: var(--ink);
+      font-weight: 600;
+      font-size: 11.5px;
+    }
+    .gate-status {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 0.06rem 0.32rem;
+      border-radius: 3px;
+    }
+    .gate-pass { background: var(--forest); color: #ffffff; }
+    .gate-review { background: var(--amber); color: #ffffff; }
+    .gate-fail { background: var(--crimson); color: #ffffff; }
+    .workbench {
+      display: grid;
+      grid-template-columns: minmax(360px, 43%) minmax(430px, 57%);
+      gap: 1rem;
+      padding: 1rem 1.5rem 2rem;
+      align-items: start;
+    }
+    @media (max-width: 1080px) {
+      .workbench { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .site-nav-inner, .landing-wrap, .wb-header, .readiness-bar, .workbench {
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
+      }
+    }
+
+    .pane {
+      background: var(--sheet);
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .pane-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.55rem 0.85rem;
+      background: var(--sheet-muted);
+      border-bottom: 1px solid var(--rule);
+    }
+    .tablist {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+    .tab-btn {
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--ink-muted);
+      border-radius: 4px;
+      padding: 0.35rem 0.6rem;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .tab-btn:hover { color: var(--ink); background: rgba(15, 23, 42, 0.04); }
+    .tab-btn.active {
+      background: var(--sheet);
+      border-color: var(--rule);
+      color: var(--cobalt);
+    }
+
+    .subpane { display: none; }
+    .subpane.active { display: block; }
+
+    .triage-summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.65rem 0.9rem;
+      border-bottom: 1px solid var(--rule);
+      font-size: 12.5px;
+      background: var(--sheet);
+    }
+
+    .finding-stream {
+      max-height: 700px;
+      overflow-y: auto;
+    }
+    .finding-row {
+      padding: 0.8rem 0.9rem;
+      border-bottom: 1px solid var(--rule);
+      cursor: pointer;
+      transition: background-color 120ms ease;
+    }
+    .finding-row:last-child { border-bottom: 0; }
+    .finding-row:hover { background: var(--canvas); }
+    .finding-row.is-tracked {
+      background: var(--cobalt-tint);
+      box-shadow: inset 3px 0 0 var(--cobalt);
+    }
+    .finding-row.is-resolved { background: var(--forest-tint); }
+    .finding-row.is-error { background: var(--crimson-tint); }
+
+    .item-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.4rem;
+      margin-bottom: 0.25rem;
+    }
+    .rule-code {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .rule-warning { color: var(--amber); }
+    .rule-error { color: var(--crimson); }
+    .rule-fixed, .rule-resolved { color: var(--forest); }
+    .item-loc {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--ink-muted);
+    }
+    .item-msg {
+      margin: 0.2rem 0 0.45rem;
+      font-size: 13px;
+    }
+
+    .diff-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.45rem;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      margin-bottom: 0.45rem;
+    }
+    @media (max-width: 540px) {
+      .diff-pair { grid-template-columns: 1fr; }
+    }
+    .diff-old, .diff-new {
+      padding: 0.35rem 0.5rem;
+      border-radius: 4px;
+      word-break: break-word;
+    }
+    .diff-old { background: var(--crimson-tint); border: 1px solid var(--crimson-rule); color: var(--crimson); }
+    .diff-new { background: var(--forest-tint); border: 1px solid var(--forest-rule); color: var(--forest); }
+
+    .fix-control-bar {
+      margin: 0.45rem 0;
+      padding: 0.5rem 0.65rem;
+      background: var(--sheet-muted);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 12px;
+    }
+    .fix-control-bar input[type="number"] {
+      width: 78px;
+      padding: 0.25rem 0.4rem;
+      border: 1px solid var(--rule-strong);
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .fix-control-bar input[type="text"] {
+      flex: 1;
+      min-width: 150px;
+      padding: 0.25rem 0.45rem;
+      border: 1px solid var(--rule-strong);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .rcf-result {
+      font-family: var(--mono);
+      font-weight: 700;
+      color: var(--cobalt);
+    }
+
+    .item-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-top: 0.4rem;
+      font-size: 11.5px;
+      color: var(--ink-muted);
+    }
+
+    .pane-pad { padding: 0.9rem; }
+    .edit-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: 680px;
+      overflow-y: auto;
+    }
+    .edit-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .edit-field input, .edit-field textarea {
+      border: 1px solid var(--rule-strong);
+      border-radius: 4px;
+      padding: 0.45rem 0.55rem;
+      font-size: 13px;
+      font-weight: 400;
+      background: var(--sheet);
+      color: var(--ink);
+    }
+    .edit-field textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+
+    .query-textarea {
+      width: 100%;
+      min-height: 380px;
+      padding: 0.85rem;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+      background: var(--sheet-muted);
+      color: var(--ink);
+      resize: vertical;
+    }
+
+    .pmc-live-box {
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 0.75rem;
+      margin-bottom: 0.9rem;
+      background: var(--sheet-muted);
+      font-size: 12.5px;
+    }
+    .pmc-live-box.is-ok {
+      border-color: var(--forest-rule);
+      background: var(--forest-tint);
+    }
+    .pmc-live-box.is-fail {
+      border-color: var(--crimson-rule);
+      background: var(--crimson-tint);
+    }
+
+    .checklist {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 12.5px;
+    }
+    .checklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.45rem;
+    }
+    .check-pass { color: var(--forest); font-weight: 700; }
+    .check-fail { color: var(--crimson); font-weight: 700; }
+
+    .img-audit {
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .img-audit img {
+      width: 100%;
+      height: auto;
+      max-height: 210px;
+      object-fit: contain;
+      background: var(--canvas);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+    }
+    .img-specs {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-muted);
+    }
+
+    .stage-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .toast {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--forest);
+    }
+    .tracked-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.45rem 0.85rem;
+      background: var(--cobalt-tint);
+      border-bottom: 1px solid var(--rule);
+      font-size: 12px;
+      color: var(--ink);
+    }
+    .tracked-bar.is-idle {
+      background: var(--sheet);
+      color: var(--ink-muted);
+    }
+    .tracked-loc-pill {
+      font-family: var(--mono);
+      font-weight: 700;
+      color: var(--cobalt);
+    }
+    .preview-frame {
+      width: 100%;
+      height: 730px;
+      border: 0;
+      background: var(--canvas);
+    }
+    .code-view {
+      margin: 0;
+      padding: 0.65rem 0;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+      background: #0f172a;
+      color: #e2e8f0;
+      height: 730px;
+      overflow: auto;
+      white-space: pre;
+    }
+    .code-line {
+      display: block;
+      padding: 0 0.85rem;
+      border-left: 3px solid transparent;
+    }
+    .code-line.is-tracked-line {
+      background: rgba(59, 130, 246, 0.28);
+      border-left-color: #60a5fa;
+    }
+    .line-num {
+      display: inline-block;
+      width: 3.5ch;
+      color: #64748b;
+      user-select: none;
+      margin-right: 1.2ch;
+      text-align: right;
+    }
+    .diff-view {
+      height: 730px;
+      overflow: auto;
+      padding: 0.85rem;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .diff-line-removed {
+      background: var(--crimson-tint);
+      color: var(--crimson);
+      padding: 0.2rem 0.5rem;
+      border-left: 3px solid var(--crimson);
+      margin-bottom: 0.2rem;
+      white-space: pre-wrap;
+    }
+    .diff-line-added {
+      background: var(--forest-tint);
+      color: var(--forest);
+      padding: 0.2rem 0.5rem;
+      border-left: 3px solid var(--forest);
+      margin-bottom: 0.45rem;
+      white-space: pre-wrap;
+    }
+    .materials-wrap {
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    table.mat-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.mat-table th, table.mat-table td {
+      border: 1px solid var(--rule);
+      padding: 0.5rem 0.65rem;
+      text-align: left;
+    }
+    table.mat-table th {
+      background: var(--sheet-muted);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div id="errorBanner" class="alert-banner" role="alert" aria-live="assertive">
+    <span id="errorBannerText"></span>
+    <button type="button" id="dismissErrorBtn" class="btn btn-sm">Dismiss</button>
+  </div>
+
+  <!-- LANDING / INTAKE VIEW -->
+  <div id="landingView">
+    <header class="site-nav">
+      <div class="site-nav-inner">
+        <a href="/" class="wordmark">JoVE Protocol Integrator</a>
+        <nav class="nav-links" aria-label="Primary navigation">
+          <a href="#intake">Upload</a>
+          <a href="#recent-runs">Runs</a>
+          <a href="#accuracy-model">QA Rules</a>
+          <a href="https://pmc.ncbi.nlm.nih.gov/tools/stylechecker/" target="_blank" rel="noopener">NCBI PMC StyleChecker</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content" class="landing-wrap">
+      <section id="intake" class="hero-grid">
+        <div class="hero-copy">
+          <h1>Word protocols to JoVE HTML &amp; PMC JATS 1.3 XML.</h1>
+          <p class="hero-lead">
+            Inspect OOXML hazards, apply lossless entity fixes, and validate against live NCBI PMC StyleChecker.
+          </p>
+
+          <form id="uploadForm" class="intake-box">
+            <h2>Upload .doc or .docx</h2>
+            <div class="intake-fields">
+              <label class="field-group">
+                <span>Manuscript</span>
+                <input type="file" id="manuscriptInput" name="manuscript" accept=".doc,.docx" />
+              </label>
+              <label class="field-group">
+                <span>Figure (optional)</span>
+                <input type="file" id="figureInput" name="figure" accept="image/*" />
+              </label>
+            </div>
+            <div class="intake-actions">
+              <button type="submit" id="uploadSubmitBtn" class="btn btn-primary">Run QA Pipeline</button>
+              <span class="intake-hint">Extracts embedded media &amp; .doc via Word COM.</span>
+            </div>
+          </form>
+        </div>
+
+        <div class="sample-picker" aria-label="Sample manuscripts">
+          <div class="sample-picker-head">
+            <h2>Sample manuscripts</h2>
+            <span>3 profiles</span>
+          </div>
+          <div class="sample-list" id="sampleList">
+            {% for s in samples %}
+            <button type="button" class="sample-row" data-sample-id="{{ s.id }}">
+              <div class="sample-row-top">
+                <span class="sample-title">{{ s.title }}</span>
+                <span class="sample-profile">{{ s.profile }}</span>
+              </div>
+              <span class="sample-file">{{ s.filename }} &middot; {{ s.discipline }}</span>
+              <p class="sample-desc">{{ s.summary }}</p>
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section id="recent-runs" class="section-block">
+        <h2>Recent runs</h2>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Manuscript</th>
+                <th>Source</th>
+                <th>QA Status</th>
+                <th>Live NCBI PMC</th>
+                <th>Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="recentRunsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="accuracy-model" class="section-block">
+        <h2>QA boundary</h2>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Tier</th>
+                <th>Checks</th>
+                <th>Rule</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="tier-label tier-fix">Auto-Fixed</span></td>
+                <td><code>ﬁ</code>/<code>ﬂ</code> ligatures, zero-width chars, <code>U+00BA</code>, <code>+/-</code>, <code>uL</code>, <code>37°C</code> spacing, <code>™/®/©</code>, species italics, chemical subscripts, A-Z materials.</td>
+                <td>Lossless only; logged in diff.</td>
+              </tr>
+              <tr>
+                <td><span class="tier-label tier-review">Needs Review</span></td>
+                <td><code>rpm</code> &rarr; <code>&times; g</code>, <code>10^6</code> exponents, <code>(w/v)</code>/<code>(v/v)</code>, vague conditions, abbreviated affiliations, <code>TNF-a</code>, step gaps, citation order, comments.</td>
+                <td>Requires author or editor input.</td>
+              </tr>
+              <tr>
+                <td><span class="tier-label tier-block">Blocking Error</span></td>
+                <td>Unaccepted <code>w:ins</code>/<code>w:del</code>, broken <code>&lt;xref&gt;</code>, missing <code>alt</code> text, missing corresponding email, JATS DTD / PMC errors.</td>
+                <td>Blocks XML export until resolved.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- WORKBENCH VIEW -->
+  <div id="workbenchView" class="hidden">
+    <header class="wb-header">
+      <div class="wb-header-left">
+        <button type="button" id="backToLandingBtn" class="btn btn-sm">&larr; Back to Intake &amp; Runs</button>
+        <div>
+          <h1 class="wb-doc-title" id="docTitle"></h1>
+          <div class="wb-doc-meta" id="docSub"></div>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <button type="button" id="verifyLivePmcBtn" class="btn btn-sm btn-ok">Verify on Live NCBI PMC</button>
+        <a id="dlBundle" class="btn btn-sm" href="#">Download Bundle (.zip)</a>
+      </div>
+    </header>
+
+    <div class="readiness-bar" id="readinessStrip" aria-label="Section readiness summary"></div>
+
+    <main class="workbench">
+      <section class="pane" aria-label="QA triage and editing">
+        <div class="pane-tabs">
+          <div class="tablist" role="tablist" aria-label="QA triage views">
+            <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-left-tab="review" id="tabBtnReview">Needs Review</button>
+            <button type="button" class="tab-btn" role="tab" aria-selected="false" data-left-tab="fixed" id="tabBtnFixed">Auto-Fixed</button>
+            <button type="button" class="tab-btn" role="tab" aria-selected="false" data-left-tab="edit">Edit Manuscript</button>
+            <button type="button" class="tab-btn" role="tab" aria-selected="false" data-left-tab="query">Author Query</button>
+            <button type="button" class="tab-btn" role="tab" aria-selected="false" data-left-tab="pmc">PMC &amp; Graphics</button>
+          </div>
+        </div>
+
+        <div id="left-review" class="subpane active">
+          <div class="triage-summary">
+            <span id="reviewProgressText"></span>
+            <span style="color:var(--ink-muted);">Click item to locate</span>
+          </div>
+          <div class="finding-stream" id="reviewList"></div>
+        </div>
+
+        <div id="left-fixed" class="subpane">
+          <div class="triage-summary">
+            <span id="fixedSummaryText"></span>
+            <span style="color:var(--ink-muted);">Click item to locate</span>
+          </div>
+          <div class="finding-stream" id="fixedList"></div>
+        </div>
+
+        <div id="left-edit" class="subpane">
+          <div class="triage-summary">
+            <span><strong>Direct Manuscript Editor</strong></span>
+            <button type="button" id="saveEditsBtn" class="btn btn-sm btn-primary">Save &amp; Rebuild Artifacts</button>
+          </div>
+          <div class="pane-pad">
+            <form id="editManuscriptForm" class="edit-form">
+              <label class="edit-field">
+                <span>Title</span>
+                <input type="text" id="editTitle" />
+              </label>
+              <div class="intake-fields" style="margin-bottom:0;">
+                <label class="edit-field">
+                  <span>Subject Area</span>
+                  <input type="text" id="editSubject" />
+                </label>
+                <label class="edit-field">
+                  <span>DOI</span>
+                  <input type="text" id="editDoi" />
+                </label>
+              </div>
+              <label class="edit-field">
+                <span>Summary</span>
+                <textarea id="editSummary"></textarea>
+              </label>
+              <label class="edit-field">
+                <span>Abstract</span>
+                <textarea id="editAbstract"></textarea>
+              </label>
+              <div id="editAffiliationsWrap"></div>
+            </form>
+          </div>
+        </div>
+
+        <div id="left-query" class="subpane">
+          <div class="triage-summary">
+            <span><strong>Author Query</strong></span>
+            <button type="button" id="copyQueryBtn" class="btn btn-sm">Copy Email</button>
+          </div>
+          <div class="pane-pad">
+            <textarea id="authorQueryBox" class="query-textarea" readonly aria-label="Generated author query email"></textarea>
+          </div>
+        </div>
+
+        <div id="left-pmc" class="subpane">
+          <div class="triage-summary">
+            <span><strong>NCBI PMC &amp; Graphics</strong></span>
+            <a href="https://pmc.ncbi.nlm.nih.gov/tools/stylechecker/" target="_blank" rel="noopener" class="btn btn-sm">Open NCBI Tool</a>
+          </div>
+          <div class="pane-pad">
+            <div id="livePmcBox" class="pmc-live-box">
+              Run <strong>Verify on Live NCBI PMC</strong> to check DTD &amp; PMC Style.
+            </div>
+            <ul class="checklist" id="xmlChecklist"></ul>
+            <div id="imagesPanel"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane" aria-label="Generated publication artifacts">
+        <div class="pane-tabs">
+          <div class="tablist" role="tablist" aria-label="Artifact views">
+            <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-right-tab="preview">Rendered JoVE Article</button>
+            <button type="button" class="tab-btn" role="tab" aria-selected="false" data-right-tab="xml">NISO JATS 1.3 XML</button>
+            <button type="button" class="tab-btn" role="tab" aria-selected="false" data-right-tab="html">HTML5 + CSS Source</button>
+            <button type="button" class="tab-btn" role="tab" aria-selected="false" data-right-tab="diff">Before vs. After Diff</button>
+            <button type="button" class="tab-btn" role="tab" aria-selected="false" data-right-tab="materials">Clean .docx &amp; Materials</button>
+          </div>
+          <div class="stage-actions">
+            <span id="copyToast" class="toast" aria-live="polite"></span>
+            <button type="button" id="copyXmlBtn" class="btn btn-sm">Copy XML</button>
+            <a id="dlXml" class="btn btn-sm btn-primary" href="#">Download .jats.xml</a>
+            <a id="dlHtml" class="btn btn-sm" href="#">Download .html</a>
+            <a id="dlDocx" class="btn btn-sm" href="#">Download Clean .docx</a>
+          </div>
+        </div>
+
+        <div id="trackedBar" class="tracked-bar is-idle" aria-live="polite">
+          <span id="trackedBarText">Select a QA item to highlight its target.</span>
+          <div class="stage-actions" id="trackedQuickBtns" style="display:none;">
+            <button type="button" class="btn btn-sm" id="jumpArticleBtn">Article</button>
+            <button type="button" class="btn btn-sm" id="jumpXmlBtn">JATS XML</button>
+          </div>
+        </div>
+
+        <div id="right-preview" class="subpane active">
+          <iframe id="previewFrame" class="preview-frame" title="Rendered JoVE Article Preview"></iframe>
+        </div>
+        <div id="right-xml" class="subpane">
+          <pre id="xmlCode" class="code-view"></pre>
+        </div>
+        <div id="right-html" class="subpane">
+          <pre id="htmlCode" class="code-view"></pre>
+        </div>
+        <div id="right-diff" class="subpane">
+          <div id="diffView" class="diff-view"></div>
+        </div>
+        <div id="right-materials" class="subpane">
+          <div class="materials-wrap">
+            <table class="mat-table">
+              <thead>
+                <tr><th>Name</th><th>Company</th><th>Catalog Number</th><th>Comments</th></tr>
+              </thead>
+              <tbody id="materialsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let currentData = {{ initial_data | tojson }};
+    let recentRuns = {{ recent_runs | tojson }};
+    const resolvedKeys = new Set();
+    let activeTrackedFinding = null;
+    let activeRightTab = "preview";
+
+    function esc(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function showError(msg) {
+      const banner = document.getElementById("errorBanner");
+      document.getElementById("errorBannerText").textContent = msg;
+      banner.classList.add("visible");
+    }
+
+    function clearError() {
+      document.getElementById("errorBanner").classList.remove("visible");
+    }
+
+    function flashToast(msg) {
+      const toast = document.getElementById("copyToast");
+      toast.textContent = msg;
+      setTimeout(() => { toast.textContent = ""; }, 2400);
+    }
+
+    async function refreshRecentRuns() {
+      const resp = await fetch("/api/runs");
+      if (resp.ok) {
+        const data = await resp.json();
+        recentRuns = data.runs || [];
+        renderRecentRuns();
+      }
+    }
+
+    function renderRecentRuns() {
+      const tbody = document.getElementById("recentRunsBody");
+      if (!recentRuns.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="color:var(--ink-muted);">No saved runs yet. Upload a manuscript or choose a sample above.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = recentRuns.map(r => {
+        let pmcBadge = `<span class="badge badge-neutral">Not checked</span>`;
+        if (r.dtd_valid === 1 && r.style_valid === 1) {
+          pmcBadge = `<span class="tier-label tier-fix">DTD OK · Style OK</span>`;
+        } else if (r.dtd_valid === 0 || r.style_valid === 0) {
+          pmcBadge = `<span class="tier-label tier-block">PMC Errors</span>`;
+        }
+        return `
+          <tr>
+            <td><strong>${esc(r.title)}</strong></td>
+            <td><code>${esc(r.source_filename)}</code></td>
+            <td>
+              <div style="display:flex;flex-wrap:wrap;gap:0.3rem;">
+                <span class="tier-label tier-fix">${r.fixed_count} fixed</span>
+                <span class="tier-label tier-review">${r.warning_count} review</span>
+                <span class="tier-label ${r.error_count ? "tier-block" : "tier-fix"}">${r.error_count} err</span>
+              </div>
+            </td>
+            <td>${pmcBadge}</td>
+            <td style="font-family:var(--mono);font-size:11.5px;color:var(--ink-muted);white-space:nowrap;">${esc(r.updated_at)}</td>
+            <td>
+              <div style="display:flex;gap:0.35rem;">
+                <button type="button" class="btn btn-sm open-run-btn" data-run-id="${esc(r.run_id)}">Open</button>
+                <button type="button" class="btn btn-sm delete-run-btn" data-run-id="${esc(r.run_id)}">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    async function showLanding() {
+      clearError();
+      document.getElementById("workbenchView").classList.add("hidden");
+      document.getElementById("landingView").classList.remove("hidden");
+      if (window.location.search) {
+        window.history.replaceState({}, "", "/");
+      }
+      await refreshRecentRuns();
+      window.scrollTo(0, 0);
+    }
+
+    function showWorkbench() {
+      document.getElementById("landingView").classList.add("hidden");
+      document.getElementById("workbenchView").classList.remove("hidden");
+      window.scrollTo(0, 0);
+    }
+
+    function findingKey(f, idx) {
+      return `${f.rule_id}::${f.location}::${idx}`;
+    }
+
+    function switchLeftTab(tab) {
+      document.querySelectorAll("[data-left-tab]").forEach(b => {
+        const active = b.dataset.leftTab === tab;
+        b.classList.toggle("active", active);
+        b.setAttribute("aria-selected", String(active));
+      });
+      ["review", "fixed", "edit", "query", "pmc"].forEach(id => {
+        document.getElementById(`left-${id}`).classList.toggle("active", id === tab);
+      });
+    }
+
+    function switchRightTab(tab) {
+      activeRightTab = tab;
+      document.querySelectorAll("[data-right-tab]").forEach(b => {
+        const active = b.dataset.rightTab === tab;
+        b.classList.toggle("active", active);
+        b.setAttribute("aria-selected", String(active));
+      });
+      ["preview", "xml", "html", "diff", "materials"].forEach(id => {
+        document.getElementById(`right-${id}`).classList.toggle("active", id === tab);
+      });
+      if (activeTrackedFinding) applyTrackingToRightPane(activeTrackedFinding);
+    }
+
+    function renderLivePmcBox(pmc) {
+      const box = document.getElementById("livePmcBox");
+      if (!pmc) {
+        box.className = "pmc-live-box";
+        box.innerHTML = `Run <strong>Verify on Live NCBI PMC</strong> to check DTD &amp; PMC Style.`;
+        return;
+      }
+      if (!pmc.reachable) {
+        box.className = "pmc-live-box is-fail";
+        box.innerHTML = `<strong>NCBI PMC StyleChecker unreachable:</strong> ${esc(pmc.error_detail || "Network error")}`;
+        return;
+      }
+      const ok = pmc.dtd_valid && pmc.style_valid;
+      box.className = `pmc-live-box ${ok ? "is-ok" : "is-fail"}`;
+      const msgs = (pmc.messages || []).map(m => {
+        const stat = m.stat ? ` (errors: ${m.stat.errors}, warnings: ${m.stat.warnings})` : "";
+        return `<li><strong>${esc(m.caption)}:</strong> ${esc(m.status)}${esc(stat)}</li>`;
+      }).join("");
+      box.innerHTML = `
+        <div><strong>Live NCBI PMC StyleChecker (${esc(pmc.response_date)}):</strong></div>
+        <ul style="margin:0.35rem 0 0;padding-left:1.2rem;">${msgs}</ul>
+      `;
+    }
+
+    function populateEditForm(msData) {
+      if (!msData) return;
+      document.getElementById("editTitle").value = msData.title || "";
+      document.getElementById("editSubject").value = msData.subject_area || "";
+      document.getElementById("editDoi").value = msData.doi || "";
+      document.getElementById("editSummary").value = (msData.summary || []).map(r => r.text).join("");
+      document.getElementById("editAbstract").value = (msData.abstract || []).map(r => r.text).join("");
+      const affWrap = document.getElementById("editAffiliationsWrap");
+      affWrap.innerHTML = (msData.affiliations || []).map((a, idx) => `
+        <label class="edit-field" style="margin-bottom:0.5rem;">
+          <span>Affiliation ${esc(a.label)}</span>
+          <input type="text" class="edit-aff-input" data-aff-idx="${idx}" value="${esc(a.institution)}" />
+        </label>
+      `).join("");
+    }
+
+    function renderDiffView(diffRows) {
+      const el = document.getElementById("diffView");
+      if (!diffRows || !diffRows.length) {
+        el.innerHTML = `<p style="color:var(--ink-muted);margin:0;">No text differences between original Word extraction and current manuscript.</p>`;
+        return;
+      }
+      el.innerHTML = diffRows.map(row =>
+        `<div class="diff-line-${esc(row.kind)}">${row.kind === "removed" ? "- " : "+ "}${esc(row.text)}</div>`
+      ).join("");
+    }
+
+    function renderState(data, preserveTabs = false) {
+      currentData = data;
+      resolvedKeys.clear();
+      activeTrackedFinding = null;
+      clearError();
+      showWorkbench();
+
+      document.getElementById("docTitle").textContent = data.title;
+      const ooxml = data.ooxml_stats || { track_changes: 0, comments: 0, native_list_items: 0 };
+      document.getElementById("docSub").textContent =
+        `${data.source_filename} (${data.source_format.toUpperCase()}) · TrackChanges: ${ooxml.track_changes} · Comments: ${ooxml.comments} · Run: ${data.run_id}`;
+
+      const readiness = data.readiness || [];
+      document.getElementById("readinessStrip").innerHTML = readiness.map(r => `
+        <span class="gate-badge is-${esc(r.status)}" title="${esc(r.detail)}">
+          <span class="gate-name">${esc(r.section)}</span>
+          <span class="gate-status gate-${esc(r.status)}">${esc(r.status)}</span>
+        </span>
+      `).join("");
+      const findings = data.findings || [];
+      const reviewItems = findings.filter(f => f.severity === "warning" || f.severity === "error");
+      const fixedItems = findings.filter(f => f.severity === "fixed");
+
+      document.getElementById("tabBtnReview").textContent = `Needs Review (${reviewItems.length})`;
+      document.getElementById("tabBtnFixed").textContent = `Auto-Fixed (${fixedItems.length})`;
+
+      renderReviewList(reviewItems);
+      renderFixedList(fixedItems);
+      renderAuthorQuery(reviewItems);
+      populateEditForm(data.manuscript_data);
+      renderLivePmcBox(data.live_pmc);
+      renderDiffView(data.diff_rows || []);
+
+      if (!preserveTabs) {
+        switchLeftTab(reviewItems.length ? "review" : (fixedItems.length ? "fixed" : "pmc"));
+        switchRightTab("preview");
+      }
+
+      const checks = data.xml_check.checks_passed || [];
+      const errs = data.xml_check.errors || [];
+      document.getElementById("xmlChecklist").innerHTML =
+        errs.map(e => `<li><span class="check-fail">&#x2717;</span><span>${esc(e)}</span></li>`).join("") +
+        checks.map(ch => `<li><span class="check-pass">&#x2713;</span><span>${esc(ch)}</span></li>`).join("");
+
+      const imgPanel = document.getElementById("imagesPanel");
+      if (!data.images.length) {
+        imgPanel.innerHTML = `<p style="color:var(--ink-muted);margin:0;">No figure assets attached to this manuscript.</p>`;
+      } else {
+        imgPanel.innerHTML = data.images.map(img => `
+          <div class="img-audit">
+            ${img.web_url ? `<img src="${esc(img.web_url)}" alt="${esc(img.alt_text)}" width="${img.web_width}" height="${img.web_height}" />` : ""}
+            <div class="img-specs">
+              Original: ${img.original_width}x${img.original_height}px (${img.meets_jove_min_resolution ? "Meets JoVE >=1440x480" : "Below JoVE min"})<br/>
+              Web Inline: ${img.web_width}x${img.web_height}px · High-Res: ${img.large_width}x${img.large_height}px
+            </div>
+            <div style="font-size:12px;"><strong>Alt text:</strong> ${esc(img.alt_text || "Missing")}</div>
+          </div>
+        `).join("");
+      }
+
+      renderCodeLines("xmlCode", data.jats_xml || "");
+      renderCodeLines("htmlCode", data.html_article || "");
+      updateTrackedBar(null);
+      document.getElementById("previewFrame").src = `${data.preview_url}?t=${Date.now()}`;
+
+      document.getElementById("materialsBody").innerHTML = (data.materials || []).map(m => `
+        <tr>
+          <td>${esc(m.name)}</td>
+          <td>${esc(m.company)}</td>
+          <td><code>${esc(m.catalog_number)}</code></td>
+          <td>${esc(m.comments)}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="4" style="color:var(--ink-muted);">No Table of Materials rows found.</td></tr>`;
+
+      document.getElementById("dlXml").href = data.download_urls.xml;
+      document.getElementById("dlHtml").href = data.download_urls.html;
+      document.getElementById("dlDocx").href = data.download_urls.docx;
+      document.getElementById("dlBundle").href = data.download_urls.bundle;
+    }
+
+    function buildInlineFixControls(f, idx) {
+      if (f.rule_id === "JOVE-CENTRIFUGE-RPM" && f.review_tool && f.review_tool.startsWith("rcf_calculator:")) {
+        const rpm = Number(f.review_tool.split(":")[1] || 0);
+        const defaultR = 85;
+        const defaultXg = Math.round(1.118e-6 * defaultR * rpm * rpm);
+        return `
+          <div class="fix-control-bar">
+            <label>Rotor radius (mm):
+              <input type="number" min="10" max="500" value="${defaultR}" data-rpm="${rpm}" class="rcf-radius-input" />
+            </label>
+            <span>&rarr; <span class="rcf-result">${defaultXg.toLocaleString()} x g</span></span>
+            <button type="button" class="btn btn-sm btn-primary apply-rcf-btn" data-rule-id="${esc(f.rule_id)}" data-location="${esc(f.location)}">Apply x g</button>
+          </div>
+        `;
+      }
+      if (f.rule_id === "JOVE-PERCENT-BASIS") {
+        return `
+          <div class="fix-control-bar">
+            <span>Insert basis:</span>
+            <button type="button" class="btn btn-sm btn-primary apply-quick-btn" data-rule-id="${esc(f.rule_id)}" data-location="${esc(f.location)}" data-value="(v/v)">Apply (v/v)</button>
+            <button type="button" class="btn btn-sm apply-quick-btn" data-rule-id="${esc(f.rule_id)}" data-location="${esc(f.location)}" data-value="(w/v)">Apply (w/v)</button>
+          </div>
+        `;
+      }
+      if (f.rule_id === "JOVE-LOST-SUPERSCRIPT") {
+        return `
+          <div class="fix-control-bar">
+            <span>Restore exponent:</span>
+            <button type="button" class="btn btn-sm btn-primary apply-quick-btn" data-rule-id="${esc(f.rule_id)}" data-location="${esc(f.location)}" data-value="superscript">Apply 10^6 Superscript</button>
+          </div>
+        `;
+      }
+      if (f.rule_id === "JOVE-VAGUE-CONDITION") {
+        const suggestion = (f.before || "").toLowerCase() === "overnight" ? "16 h" : "22 °C";
+        return `
+          <div class="fix-control-bar">
+            <input type="text" class="inline-fix-input" value="${esc(suggestion)}" aria-label="Exact condition value" />
+            <button type="button" class="btn btn-sm btn-primary apply-input-btn" data-rule-id="${esc(f.rule_id)}" data-location="${esc(f.location)}">Apply Value</button>
+          </div>
+        `;
+      }
+      if (f.rule_id === "JOVE-AFFIL-ABBREV") {
+        const expanded = (f.before || "").replace(/\bDept\./g, "Department").replace(/\bUniv\./g, "University").replace(/\bInst\./g, "Institute");
+        return `
+          <div class="fix-control-bar">
+            <input type="text" class="inline-fix-input" value="${esc(expanded)}" aria-label="Full institution name" />
+            <button type="button" class="btn btn-sm btn-primary apply-input-btn" data-rule-id="${esc(f.rule_id)}" data-location="${esc(f.location)}">Apply Full Name</button>
+          </div>
+        `;
+      }
+      if (f.rule_id === "JOVE-GREEK-HOMOGLYPH") {
+        return `
+          <div class="fix-control-bar">
+            <span>Convert Latin prefix:</span>
+            <button type="button" class="btn btn-sm btn-primary apply-quick-btn" data-rule-id="${esc(f.rule_id)}" data-location="${esc(f.location)}" data-value="auto">Apply Greek Symbol</button>
+          </div>
+        `;
+      }
+      if (f.rule_id === "JOVE-MATERIALS-INCOMPLETE") {
+        return `
+          <div class="fix-control-bar">
+            <input type="text" class="inline-fix-input" placeholder="Enter catalog #" aria-label="Catalog number" />
+            <button type="button" class="btn btn-sm btn-primary apply-input-btn" data-rule-id="${esc(f.rule_id)}" data-location="${esc(f.location)}">Save Catalog #</button>
+          </div>
+        `;
+      }
+      if (f.rule_id === "JOVE-STEP-SEQUENCE") {
+        return `
+          <div class="fix-control-bar">
+            <span>Sequential renumber:</span>
+            <button type="button" class="btn btn-sm btn-primary apply-quick-btn" data-rule-id="${esc(f.rule_id)}" data-location="${esc(f.location)}" data-value="renumber">Renumber Steps</button>
+          </div>
+        `;
+      }
+      return "";
+    }
+
+    function renderReviewList(reviewItems) {
+      const list = document.getElementById("reviewList");
+      const resolvedCount = reviewItems.filter((f, i) => resolvedKeys.has(findingKey(f, i))).length;
+      document.getElementById("reviewProgressText").innerHTML =
+        `<strong>${resolvedCount} / ${reviewItems.length}</strong> review items verified`;
+
+      if (!reviewItems.length) {
+        list.innerHTML = `<div class="pane-pad"><p style="color:var(--forest);margin:0;font-weight:600;">All checks passed with zero items requiring manual review.</p></div>`;
+        return;
+      }
+
+      list.innerHTML = reviewItems.map((f, idx) => {
+        const key = findingKey(f, idx);
+        const isResolved = resolvedKeys.has(key);
+        const isErr = f.severity === "error";
+        const rowCls = isResolved ? "is-resolved" : (isErr ? "is-error" : "");
+        const ruleCls = isResolved ? "rule-resolved" : (isErr ? "rule-error" : "rule-warning");
+        return `
+          <article class="finding-row ${rowCls}" data-finding-kind="review" data-finding-idx="${idx}" tabindex="0">
+            <div class="item-head">
+              <span class="badge ${isResolved ? "badge-pass" : (isErr ? "badge-fail" : "badge-review")}">${esc(f.rule_id)} &middot; ${isResolved ? "VERIFIED" : esc(f.severity.toUpperCase())}</span>
+              <span class="item-loc">${esc(f.location)}</span>
+            </div>
+            <p class="item-msg">${esc(f.message)}</p>
+            ${(f.before || f.after) ? `
+              <div class="diff-pair">
+                <div class="diff-old"><strong>Detected:</strong> ${esc(f.before)}</div>
+                <div class="diff-new"><strong>Target:</strong> ${esc(f.after)}</div>
+              </div>
+            ` : ""}
+            ${buildInlineFixControls(f, idx)}
+            <div class="item-actions">
+              <span>${esc(f.guideline_ref)}</span>
+              <div style="display:flex;gap:0.35rem;">
+                <button type="button" class="btn btn-sm locate-btn" data-finding-kind="review" data-finding-idx="${idx}">Locate</button>
+                <button type="button" class="btn btn-sm toggle-resolve-btn" data-key="${esc(key)}">
+                  ${isResolved ? "Reopen" : "Mark Verified"}
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderFixedList(fixedItems) {
+      document.getElementById("fixedSummaryText").innerHTML =
+        `<strong>${fixedItems.length}</strong> deterministic normalizations applied`;
+      const list = document.getElementById("fixedList");
+      if (!fixedItems.length) {
+        list.innerHTML = `<div class="pane-pad"><p style="color:var(--ink-muted);margin:0;">No deterministic fixes were needed on this manuscript.</p></div>`;
+        return;
+      }
+      list.innerHTML = fixedItems.map((f, idx) => `
+        <article class="finding-row" data-finding-kind="fixed" data-finding-idx="${idx}" tabindex="0">
+          <div class="item-head">
+            <span class="badge badge-pass">${esc(f.rule_id)} &middot; AUTO-FIXED</span>
+            <span class="item-loc">${esc(f.location)}</span>
+          </div>
+          ${(f.before || f.after) ? `
+            <div class="diff-pair">
+              <div class="diff-old"><strong>Before:</strong> ${esc(f.before)}</div>
+              <div class="diff-new"><strong>After:</strong> ${esc(f.after)}</div>
+            </div>
+          ` : ""}
+          <div class="item-actions">
+            <span>${esc(f.guideline_ref)}</span>
+            <button type="button" class="btn btn-sm locate-btn" data-finding-kind="fixed" data-finding-idx="${idx}">Locate</button>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function renderAuthorQuery(reviewItems) {
+      const unresolved = reviewItems.filter((f, i) => !resolvedKeys.has(findingKey(f, i)));
+      if (!unresolved.length) {
+        document.getElementById("authorQueryBox").value =
+          "All editorial and technical checks are verified. No author queries pending.";
+        return;
+      }
+      const lines = [
+        `Subject: Editorial & Technical QA Queries - ${currentData.title}`,
+        "",
+        "Dear Corresponding Author,",
+        "",
+        "During pre-publication HTML/CSS and PubMed Central JATS XML integration, please confirm the following items:",
+        "",
+      ];
+      unresolved.forEach((f, idx) => {
+        const q = f.suggested_query || `${f.location}: ${f.message}`;
+        lines.push(`${idx + 1}. [${f.rule_id}] ${q}`);
+      });
+      lines.push("", "Thank you,", "JoVE Protocol Integration Desk");
+      document.getElementById("authorQueryBox").value = lines.join("\n");
+    }
+
+    function renderCodeLines(elId, text) {
+      const lines = String(text || "").split("\n");
+      document.getElementById(elId).innerHTML = lines.map((line, i) =>
+        `<span class="code-line" data-line="${i + 1}"><span class="line-num">${i + 1}</span>${esc(line)}</span>`
+      ).join("");
+    }
+
+    function stripTags(s) {
+      return String(s || "").replace(/<[^>]+>/g, "").replace(/^['"]|['"]$/g, "").trim();
+    }
+
+    function extractSearchNeedles(f) {
+      const candidates = [];
+      const afterClean = stripTags(f.after);
+      const beforeClean = stripTags(f.before);
+      if (afterClean && !afterClean.startsWith("Convert via") && !afterClean.startsWith("Specify ") && !afterClean.startsWith("Spell out") && !afterClean.startsWith("Verify ") && !afterClean.startsWith("<=") && !afterClean.startsWith(">=") && !afterClean.startsWith("Provide ")) {
+        candidates.push(afterClean);
+      }
+      if (beforeClean) candidates.push(beforeClean);
+      for (const c of [...candidates]) {
+        if (c.length > 48) {
+          const m = c.match(/(\d+(?:\.\d+)?\s*(?:°C|ºC|µL|uL|mM|GHz|min|rpm|dB)|microfluidic|NanoDrop|Triton|H2O2)/i);
+          if (m) candidates.push(m[0]);
+        }
+      }
+      return candidates.filter(Boolean);
+    }
+
+    function clearIframeHighlights(doc) {
+      if (!doc) return;
+      doc.querySelectorAll(".qa-tracked-target").forEach(el => el.classList.remove("qa-tracked-target"));
+      doc.querySelectorAll("mark.qa-tracked-hit").forEach(mark => {
+        const parent = mark.parentNode;
+        if (parent) {
+          parent.replaceChild(doc.createTextNode(mark.textContent || ""), mark);
+          parent.normalize();
+        }
+      });
+    }
+
+    function highlightTextInElement(doc, rootEl, needles) {
+      for (const needle of needles) {
+        if (!needle || needle.length < 2) continue;
+        const walker = doc.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          const val = node.nodeValue || "";
+          const idx = val.toLowerCase().indexOf(needle.toLowerCase());
+          if (idx !== -1) {
+            const range = doc.createRange();
+            range.setStart(node, idx);
+            range.setEnd(node, idx + needle.length);
+            const mark = doc.createElement("mark");
+            mark.className = "qa-tracked-hit";
+            range.surroundContents(mark);
+            return mark;
+          }
+        }
+      }
+      return null;
+    }
+
+    function findIframeTarget(doc, location) {
+      if (!doc) return null;
+      let el = doc.querySelector(`[data-qa-loc="${CSS.escape(location)}"]`);
+      if (el) return el;
+      if (location.startsWith("Material:")) return doc.querySelector('[data-qa-loc="Table of Materials"]');
+      if (location.startsWith("Author ")) return doc.querySelector('[data-qa-loc="Authors & Affiliations"]');
+      if (location.startsWith("Protocol ")) {
+        const base = location.replace(/\s+(NOTE|CAUTION)$/, "");
+        el = doc.querySelector(`[data-qa-loc="${CSS.escape(base)}"]`);
+        if (el) return el;
+      }
+      if (location === "References" || location === "Body Text / References") {
+        return doc.querySelector('[data-qa-loc="References"]');
+      }
+      return null;
+    }
+
+    function findCodeLine(containerId, text, f) {
+      const container = document.getElementById(containerId);
+      container.querySelectorAll(".is-tracked-line").forEach(el => el.classList.remove("is-tracked-line"));
+      const lines = String(text || "").split("\n");
+      const needles = extractSearchNeedles(f);
+      const loc = f.location || "";
+      const locHints = [];
+      if (loc === "Abstract") locHints.push("<abstract>", 'id="abstract"');
+      else if (loc === "Summary") locHints.push('id="summary"', "<abstract>");
+      else if (loc.startsWith("Introduction")) locHints.push('id="sec-intro"', 'id="introduction"');
+      else if (loc.startsWith("Protocol ")) {
+        const stepNum = loc.replace("Protocol ", "").replace(/\s+(NOTE|CAUTION)$/, "");
+        locHints.push(`<label>${stepNum}</label>`, `data-step="${stepNum}"`);
+      } else if (loc.startsWith("Affiliation ")) {
+        const num = loc.replace("Affiliation ", "").trim();
+        locHints.push(`id="aff${num}"`, `Affiliation ${num}`);
+      } else if (loc === "Table of Materials" || loc.startsWith("Material:")) {
+        locHints.push('id="tbl1"', 'id="materials"');
+      } else if (loc === "References" || loc === "Body Text / References") {
+        locHints.push("<ref-list>", 'id="references"');
+      }
+
+      let matchIdx = -1;
+      const startHintIdx = locHints.length
+        ? lines.findIndex(l => locHints.some(h => l.includes(h)))
+        : -1;
+      const searchStart = startHintIdx >= 0 ? startHintIdx : 0;
+      for (const needle of needles) {
+        const found = lines.findIndex((l, i) => i >= searchStart && l.toLowerCase().includes(needle.toLowerCase()));
+        if (found !== -1) {
+          matchIdx = found;
+          break;
+        }
+      }
+      if (matchIdx === -1 && startHintIdx !== -1) matchIdx = startHintIdx;
+      if (matchIdx === -1) return null;
+
+      const lineEl = container.querySelector(`.code-line[data-line="${matchIdx + 1}"]`);
+      if (lineEl) {
+        lineEl.classList.add("is-tracked-line");
+        lineEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return matchIdx + 1;
+    }
+
+    function updateTrackedBar(f, extraInfo = "") {
+      const bar = document.getElementById("trackedBar");
+      const textEl = document.getElementById("trackedBarText");
+      const btns = document.getElementById("trackedQuickBtns");
+      if (!f) {
+        bar.classList.add("is-idle");
+        textEl.textContent = "Select a QA item to highlight its target.";
+        btns.style.display = "none";
+        return;
+      }
+      const snippet = stripTags(f.before || f.after || "").slice(0, 48);
+      textEl.innerHTML = `Tracked: <span class="tracked-loc-pill">${esc(f.location)}</span> &middot; <code>${esc(f.rule_id)}</code>${snippet ? ` &middot; "${esc(snippet)}"` : ""}${extraInfo ? ` &middot; <strong>${esc(extraInfo)}</strong>` : ""}`;
+      btns.style.display = "flex";
+    }
+
+    function applyTrackingToRightPane(f) {
+      if (!f) return;
+      const needles = extractSearchNeedles(f);
+      const frame = document.getElementById("previewFrame");
+      const doc = frame.contentDocument;
+      let extra = "";
+
+      if (doc) {
+        clearIframeHighlights(doc);
+        const target = findIframeTarget(doc, f.location);
+        if (target) {
+          target.classList.add("qa-tracked-target");
+          const mark = highlightTextInElement(doc, target, needles);
+          if (activeRightTab === "preview") {
+            (mark || target).scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+      }
+
+      const xmlLine = findCodeLine("xmlCode", currentData.jats_xml, f);
+      const htmlLine = findCodeLine("htmlCode", currentData.html_article, f);
+      if (activeRightTab === "xml" && xmlLine) extra = `JATS XML Line ${xmlLine}`;
+      else if (activeRightTab === "html" && htmlLine) extra = `HTML Line ${htmlLine}`;
+      else if (xmlLine) extra = `XML Line ${xmlLine}`;
+
+      updateTrackedBar(f, extra);
+    }
+
+    function locateFinding(kind, idx, cardEl) {
+      const findings = currentData.findings || [];
+      const list = kind === "review"
+        ? findings.filter(f => f.severity === "warning" || f.severity === "error")
+        : findings.filter(f => f.severity === "fixed");
+      const f = list[idx];
+      if (!f) return;
+      activeTrackedFinding = f;
+      document.querySelectorAll(".is-tracked").forEach(el => el.classList.remove("is-tracked"));
+      if (cardEl) cardEl.classList.add("is-tracked");
+      if (activeRightTab === "materials" && f.location !== "Table of Materials" && !f.location.startsWith("Material:")) {
+        switchRightTab("preview");
+      }
+      applyTrackingToRightPane(f);
+    }
+
+    async function submitFix(ruleId, location, value) {
+      const resp = await fetch(`/api/runs/${encodeURIComponent(currentData.run_id)}/apply-fix`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rule_id: ruleId, location, value }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: "Failed to apply fix." }));
+        showError(err.detail || "Failed to apply fix.");
+        return;
+      }
+      const updated = await resp.json();
+      renderState(updated, true);
+      flashToast(`Applied fix (${ruleId}) & rebuilt artifacts`);
+    }
+
+    document.getElementById("previewFrame").addEventListener("load", () => {
+      if (activeTrackedFinding) applyTrackingToRightPane(activeTrackedFinding);
+    });
+
+    document.getElementById("reviewList").addEventListener("input", (e) => {
+      const inp = e.target.closest(".rcf-radius-input");
+      if (!inp) return;
+      const r = Number(inp.value || 0);
+      const rpm = Number(inp.dataset.rpm || 0);
+      const xg = r > 0 ? Math.round(1.118e-6 * r * rpm * rpm) : 0;
+      const out = inp.closest(".fix-control-bar").querySelector(".rcf-result");
+      out.textContent = `${xg.toLocaleString()} x g`;
+    });
+
+    document.getElementById("reviewList").addEventListener("click", async (e) => {
+      const rcfBtn = e.target.closest(".apply-rcf-btn");
+      if (rcfBtn) {
+        const bar = rcfBtn.closest(".fix-control-bar");
+        const xgText = bar.querySelector(".rcf-result").textContent.trim();
+        await submitFix(rcfBtn.dataset.ruleId, rcfBtn.dataset.location, xgText);
+        return;
+      }
+      const quickBtn = e.target.closest(".apply-quick-btn");
+      if (quickBtn) {
+        await submitFix(quickBtn.dataset.ruleId, quickBtn.dataset.location, quickBtn.dataset.value);
+        return;
+      }
+      const inputBtn = e.target.closest(".apply-input-btn");
+      if (inputBtn) {
+        const val = inputBtn.closest(".fix-control-bar").querySelector(".inline-fix-input").value.trim();
+        if (!val) {
+          showError("Enter a replacement value before applying.");
+          return;
+        }
+        await submitFix(inputBtn.dataset.ruleId, inputBtn.dataset.location, val);
+        return;
+      }
+      if (e.target.closest(".fix-control-bar")) return;
+
+      const resolveBtn = e.target.closest(".toggle-resolve-btn");
+      if (resolveBtn) {
+        const key = resolveBtn.dataset.key;
+        if (resolvedKeys.has(key)) resolvedKeys.delete(key);
+        else resolvedKeys.add(key);
+        const reviewItems = (currentData.findings || []).filter(f => f.severity === "warning" || f.severity === "error");
+        renderReviewList(reviewItems);
+        renderAuthorQuery(reviewItems);
+        return;
+      }
+      const card = e.target.closest("[data-finding-kind]");
+      if (card) locateFinding(card.dataset.findingKind, Number(card.dataset.findingIdx), card);
+    });
+
+    document.getElementById("fixedList").addEventListener("click", (e) => {
+      const card = e.target.closest("[data-finding-kind]");
+      if (card) locateFinding(card.dataset.findingKind, Number(card.dataset.findingIdx), card);
+    });
+
+    ["reviewList", "fixedList"].forEach(id => {
+      document.getElementById(id).addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        if (e.target.closest("button, input")) return;
+        const card = e.target.closest("[data-finding-kind]");
+        if (card) locateFinding(card.dataset.findingKind, Number(card.dataset.findingIdx), card);
+      });
+    });
+
+    document.getElementById("saveEditsBtn").addEventListener("click", async () => {
+      const affs = Array.from(document.querySelectorAll(".edit-aff-input")).map(inp => inp.value);
+      const payload = {
+        title: document.getElementById("editTitle").value,
+        subject_area: document.getElementById("editSubject").value,
+        doi: document.getElementById("editDoi").value,
+        summary: document.getElementById("editSummary").value,
+        abstract: document.getElementById("editAbstract").value,
+        affiliations: affs,
+      };
+      const resp = await fetch(`/api/runs/${encodeURIComponent(currentData.run_id)}/edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        showError("Failed to save manuscript edits.");
+        return;
+      }
+      renderState(await resp.json(), true);
+      flashToast("Saved edits & rebuilt artifacts");
+    });
+
+    document.getElementById("verifyLivePmcBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("verifyLivePmcBtn");
+      btn.disabled = true;
+      btn.textContent = "Checking NCBI PMC...";
+      try {
+        const resp = await fetch(`/api/runs/${encodeURIComponent(currentData.run_id)}/verify-pmc`, { method: "POST" });
+        const pmc = await resp.json();
+        currentData.live_pmc = pmc;
+        renderLivePmcBox(pmc);
+        switchLeftTab("pmc");
+        flashToast(pmc.dtd_valid && pmc.style_valid ? "NCBI PMC: DTD OK & Style OK" : "NCBI PMC check completed");
+      } catch (err) {
+        showError("Failed to reach NCBI PMC StyleChecker.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Verify on Live NCBI PMC";
+      }
+    });
+
+    document.getElementById("jumpArticleBtn").addEventListener("click", () => switchRightTab("preview"));
+    document.getElementById("jumpXmlBtn").addEventListener("click", () => switchRightTab("xml"));
+
+    document.querySelectorAll("[data-left-tab]").forEach(btn => {
+      btn.addEventListener("click", () => switchLeftTab(btn.dataset.leftTab));
+    });
+
+    document.querySelectorAll("[data-right-tab]").forEach(btn => {
+      btn.addEventListener("click", () => switchRightTab(btn.dataset.rightTab));
+    });
+
+    document.getElementById("copyXmlBtn").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(currentData.jats_xml || "");
+      flashToast("Copied JATS XML");
+    });
+
+    document.getElementById("copyQueryBtn").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(document.getElementById("authorQueryBox").value || "");
+      flashToast("Copied Author Query");
+    });
+
+    document.getElementById("dismissErrorBtn").addEventListener("click", clearError);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") clearError();
+    });
+
+    document.getElementById("backToLandingBtn").addEventListener("click", showLanding);
+
+    document.getElementById("recentRunsBody").addEventListener("click", async (e) => {
+      const openBtn = e.target.closest(".open-run-btn");
+      if (openBtn) {
+        const resp = await fetch(`/api/runs/${encodeURIComponent(openBtn.dataset.runId)}`);
+        if (resp.ok) renderState(await resp.json());
+        else showError("Could not load saved run.");
+        return;
+      }
+      const delBtn = e.target.closest(".delete-run-btn");
+      if (delBtn) {
+        const resp = await fetch(`/api/runs/${encodeURIComponent(delBtn.dataset.runId)}`, { method: "DELETE" });
+        if (resp.ok) await refreshRecentRuns();
+      }
+    });
+
+    document.getElementById("sampleList").addEventListener("click", async (e) => {
+      const row = e.target.closest("[data-sample-id]");
+      if (!row) return;
+      const sampleId = row.dataset.sampleId;
+      row.disabled = true;
+      try {
+        const fd = new FormData();
+        fd.append("sample_id", sampleId);
+        const resp = await fetch("/api/process", { method: "POST", body: fd });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ detail: "Failed to load sample manuscript." }));
+          showError(err.detail || "Failed to load sample manuscript.");
+          return;
+        }
+        renderState(await resp.json());
+      } finally {
+        row.disabled = false;
+      }
+    });
+
+    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msFile = document.getElementById("manuscriptInput").files[0];
+      if (!msFile) {
+        showError("Select a .doc or .docx manuscript file first, or choose one of the sample manuscripts.");
+        return;
+      }
+      const submitBtn = document.getElementById("uploadSubmitBtn");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Processing...";
+      try {
+        const fd = new FormData();
+        fd.append("manuscript", msFile);
+        const figFile = document.getElementById("figureInput").files[0];
+        if (figFile) fd.append("figure", figFile);
+        const resp = await fetch("/api/process", { method: "POST", body: fd });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ detail: "Manuscript processing failed." }));
+          showError(err.detail || "Manuscript processing failed.");
+          return;
+        }
+        renderState(await resp.json());
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Run QA Pipeline";
+      }
+    });
+
+    renderRecentRuns();
+    if (currentData) {
+      renderState(currentData);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+.git
+.gitignore
+.pytest_cache
+__pycache__
+*.pyc
+*.egg-info
+.venv
+output
+HANDOFF.md
+pmc_result.txt
+tests
+deploy

@@ -1,0 +1,39 @@
+services:
+  jove-workbench:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: jove-workbench:latest
+    container_name: jove-workbench
+    restart: unless-stopped
+    environment:
+      JOVE_ENV: production
+      JOVE_TRUST_PROXY: "1"
+      JOVE_RATE_LIMIT_ENABLED: "1"
+      JOVE_MAX_RUNS: "40"
+      JOVE_MAX_MANUSCRIPT_BYTES: "10485760"
+      JOVE_MAX_FIGURE_BYTES: "5242880"
+    volumes:
+      - ./data:/app/output
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    networks:
+      - edge
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    cpus: 0.75
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  edge:
+    name: docextract_edge
+    external: true
