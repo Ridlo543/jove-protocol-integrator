@@ -8,6 +8,9 @@ services:
     image: jove-workbench:latest
     container_name: jove-workbench
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     environment:
       JOVE_ENV: production
       JOVE_APP_DIR: /app

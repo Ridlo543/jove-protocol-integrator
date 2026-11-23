@@ -1966,6 +1966,9 @@
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = "Run QA Pipeline";
+        if (window.turnstile) {
+          try { window.turnstile.reset(); } catch (_) {}
+        }
       }
     });
 
