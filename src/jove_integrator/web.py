@@ -27,11 +27,13 @@ from .pipeline import run_pipeline
 from .pmc_client import verify_xml_on_live_pmc
 from .storage import RunStore, manuscript_from_dict, manuscript_to_dict
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+_pkg_root = Path(__file__).resolve().parents[2]
+BASE_DIR = Path(os.getenv("JOVE_APP_DIR", str(_pkg_root if (_pkg_root / "templates").exists() else Path.cwd())))
+DATA_DIR = Path(os.getenv("JOVE_DATA_DIR", str(BASE_DIR / "output")))
 TEMPLATES_DIR = BASE_DIR / "templates"
 SAMPLES_DIR = BASE_DIR / "samples"
-RUNS_DIR = BASE_DIR / "output" / "web_runs"
-STORE = RunStore(BASE_DIR / "output" / "workbench.db")
+RUNS_DIR = DATA_DIR / "web_runs"
+STORE = RunStore(DATA_DIR / "workbench.db")
 
 IS_PROD = os.getenv("JOVE_ENV", "").lower() == "production"
 TRUST_PROXY = os.getenv("JOVE_TRUST_PROXY", "0") == "1"
