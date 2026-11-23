@@ -111,4 +111,43 @@ def test_path_traversal_and_rate_limiter() -> None:
     r_limited = client.post("/api/process", data={"sample_id": "clean-ready"})
     assert r_limited.status_code == 429
     assert "retry-after" in r_limited.headers
+
+
+def test_session_isolation_and_honeypot() -> None:
+    web.RATE_LIMITER.reset()
+    c1 = TestClient(web.app)
+    c2 = TestClient(web.app)
+
+    # Honeypot filled -> rejected
+    r_bot = c1.post("/api/process", data={"sample_id": "clean-ready", "website": "http://spam.example"})
+    assert r_bot.status_code == 400
+
+    # Upload a manuscript in session 1
+    doc = Document()
+    doc.add_paragraph("Private Session Manuscript", style="Title")
+    doc.add_heading("Methods", level=1)
+    doc.add_paragraph("1.1 Incubate at 37°C.")
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
+    r_up = c1.post(
+        "/api/process",
+        files={"manuscript": ("priv.docx", buf, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+    assert r_up.status_code == 200
+    run_id = r_up.json()["run_id"]
+
+    # Session 2 must NOT see session 1's private upload in /api/runs and must get 403 on DELETE
+    r_list2 = c2.get("/api/runs")
+    assert r_list2.status_code == 200
+    assert all(r["run_id"] != run_id for r in r_list2.json()["runs"])
+
+    r_del2 = c2.delete(f"/api/runs/{run_id}")
+    assert r_del2.status_code == 403
+
+    # Session 1 CAN delete its own run
+    r_del1 = c1.delete(f"/api/runs/{run_id}")
+    assert r_del1.status_code == 200
+    web.RATE_LIMITER.reset()
     web.RATE_LIMITER.reset()

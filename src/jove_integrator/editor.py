@@ -209,6 +209,22 @@ def apply_review_fix(ms: Manuscript, rule_id: str, location: str, value: str) ->
                     )
                 ],
             )
+        elif rule_id == "JOVE-DECIMAL-COMMA":
+            applied |= _replace_in_runs(
+                runs,
+                re.compile(r"\b(\d+),(\d{1,2})\s*(%|(?:°C|µL|mL|mg|kg|cm|mm|nm|g|L|M|mM|µM|min|h|s)\b)"),
+                lambda m, base: [
+                    TextRun(
+                        f"{m.group(1)}.{m.group(2)}{' ' if m.group(3) != '%' else ''}{m.group(3)}"
+                        if value == "auto"
+                        else value,
+                        base.bold,
+                        base.italic,
+                        base.subscript,
+                        base.superscript,
+                    )
+                ],
+            )
     return applied
 
 

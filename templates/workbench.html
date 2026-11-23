@@ -897,6 +897,11 @@
                 <input type="file" id="figureInput" name="figure" accept="image/*" />
               </label>
             </div>
+            <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" />
+            {% if turnstile_site_key %}
+            <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" style="margin-bottom:0.75rem;"></div>
+            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+            {% endif %}
             <div class="intake-actions">
               <button type="submit" id="uploadSubmitBtn" class="btn btn-primary">Run QA Pipeline</button>
               <span class="intake-hint">Extracts embedded media &amp; .doc via Word COM.</span>
@@ -1445,6 +1450,14 @@
           </div>
         `;
       }
+      if (f.rule_id === "JOVE-DECIMAL-COMMA") {
+        return `
+          <div class="fix-control-bar">
+            <span>Convert decimal comma:</span>
+            <button type="button" class="btn btn-sm btn-primary apply-quick-btn" data-rule-id="${esc(f.rule_id)}" data-location="${esc(f.location)}" data-value="auto">Apply Decimal Point</button>
+          </div>
+        `;
+      }
       if (f.rule_id === "JOVE-MATERIALS-INCOMPLETE") {
         return `
           <div class="fix-control-bar">
@@ -1942,10 +1955,7 @@
       submitBtn.disabled = true;
       submitBtn.textContent = "Processing...";
       try {
-        const fd = new FormData();
-        fd.append("manuscript", msFile);
-        const figFile = document.getElementById("figureInput").files[0];
-        if (figFile) fd.append("figure", figFile);
+        const fd = new FormData(e.target);
         const resp = await fetch("/api/process", { method: "POST", body: fd });
         if (!resp.ok) {
           const err = await resp.json().catch(() => ({ detail: "Manuscript processing failed." }));

@@ -204,6 +204,12 @@ def render_article_html(ms: Manuscript, asset_prefix: str = "") -> str:
             )
         refs_html = f'<section id="references" data-qa-loc="References"><h2>References</h2><ol class="jove-references">{"".join(ref_items)}</ol></section>'
 
+    footnotes_html = ""
+    if ms.footnotes:
+        fn_lis = "".join(f"<li>{encode_scientific_html(fn)}</li>" for fn in ms.footnotes if fn.strip())
+        if fn_lis:
+            footnotes_html = f'<section id="footnotes" data-qa-loc="Footnotes"><h2>Footnotes</h2><ol class="jove-references">{fn_lis}</ol></section>'
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -425,6 +431,7 @@ def render_article_html(ms: Manuscript, asset_prefix: str = "") -> str:
     <section id="acknowledgments" data-qa-loc="Acknowledgments"><h2>Acknowledgments</h2><p>{render_runs_html(ms.acknowledgments)}</p></section>
     <section id="disclosures" data-qa-loc="Disclosures"><h2>Disclosures</h2><p>{render_runs_html(ms.disclosures)}</p></section>
     {refs_html}
+    {footnotes_html}
   </article>
 </body>
 </html>

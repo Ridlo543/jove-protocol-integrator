@@ -63,8 +63,17 @@ SECTION_ALIASES = {
     "COMPETING INTERESTS": "DISCLOSURES",
     "COMPETING INTEREST STATEMENT": "DISCLOSURES",
     "REFERENCES": "REFERENCES",
+    "REFERENCE": "REFERENCES",
     "BIBLIOGRAPHY": "REFERENCES",
     "LITERATURE CITED": "REFERENCES",
+    "RESULTS AND DISCUSSION": "DISCUSSION",
+    "RESULTS & DISCUSSION": "DISCUSSION",
+    "SUPPLEMENTARY METHODS": "PROTOCOL",
+    "EXPERIMENTAL": "PROTOCOL",
+    "EXPERIMENTAL SECTION": "PROTOCOL",
+    "REAGENTS AND MATERIALS": "MATERIALS",
+    "REAGENTS": "MATERIALS",
+    "EQUIPMENT": "MATERIALS",
 }
 
 MEDIA_EXTS = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".emf", ".wmf")
@@ -168,12 +177,13 @@ def _validate_docx_archive(zf: zipfile.ZipFile) -> None:
 def _inspect_ooxml_hazards(
     docx_path: Path,
     media_dir: Path | None = None,
-) -> tuple[int, int, list[str], list[str]]:
-    """Count Track Changes, comments, extract embedded media, and collect wp:docPr alt texts."""
+) -> tuple[int, int, list[str], list[str], list[str]]:
+    """Count Track Changes, comments, extract embedded media, wp:docPr alt texts, and footnotes/endnotes."""
     track_changes = 0
     comments = 0
     extracted_media: list[str] = []
     docpr_alts: list[str] = []
+    footnotes: list[str] = []
     with zipfile.ZipFile(docx_path, "r") as zf:
         _validate_docx_archive(zf)
         names = zf.namelist()
@@ -187,6 +197,19 @@ def _inspect_ooxml_hazards(
         if "word/comments.xml" in names:
             croot = etree.fromstring(zf.read("word/comments.xml"), parser=SAFE_XML_PARSER)
             comments = len(croot.xpath(".//w:comment", namespaces={"w": W_NS}))
+        for note_part, tag_name in (("word/footnotes.xml", "footnote"), ("word/endnotes.xml", "endnote")):
+            if note_part in names:
+                nroot = etree.fromstring(zf.read(note_part), parser=SAFE_XML_PARSER)
+                for note_el in nroot.xpath(f".//w:{tag_name}", namespaces={"w": W_NS}):
+                    nid = note_el.get(f"{{{W_NS}}}id") or "0"
+                    try:
+                        if int(nid) <= 0:
+                            continue
+                    except ValueError:
+                        continue
+                    ntxt = "".join(note_el.xpath(".//w:t/text()", namespaces={"w": W_NS})).strip()
+                    if ntxt:
+                        footnotes.append(ntxt)
         if media_dir is not None:
             for member in sorted(names):
                 if member.startswith("word/media/") and Path(member).suffix.lower() in MEDIA_EXTS:
@@ -197,7 +220,7 @@ def _inspect_ooxml_hazards(
                         continue
                     (media_dir / out_name).write_bytes(zf.read(member))
                     extracted_media.append(out_name)
-    return track_changes, comments, extracted_media, docpr_alts
+    return track_changes, comments, extracted_media, docpr_alts, footnotes
 
 def _get_native_list_level(paragraph: Paragraph) -> int | None:
     ppr = paragraph._element.pPr
@@ -212,47 +235,53 @@ def _get_native_list_level(paragraph: Paragraph) -> int | None:
     return 0
 
 
+def _extract_run_element(r_el) -> TextRun | None:
+    text_parts = [t.text for t in r_el.findall(qn("w:t")) if t.text]
+    if r_el.find(qn("w:tab")) is not None:
+        text_parts.append(" ")
+    txt = "".join(text_parts)
+    if not txt:
+        return None
+    rpr = r_el.find(qn("w:rPr"))
+    bold = False
+    italic = False
+    is_sub = False
+    is_sup = False
+    if rpr is not None:
+        b_el = rpr.find(qn("w:b"))
+        bold = b_el is not None and b_el.get(qn("w:val")) not in ("0", "false")
+        i_el = rpr.find(qn("w:i"))
+        italic = i_el is not None and i_el.get(qn("w:val")) not in ("0", "false")
+        va = rpr.find(qn("w:vertAlign"))
+        if va is not None:
+            val = va.get(qn("w:val"))
+            is_sub = val == "subscript"
+            is_sup = val == "superscript"
+    return TextRun(text=txt, bold=bold, italic=italic, subscript=is_sub, superscript=is_sup)
+
+
 def _extract_runs(paragraph: Paragraph) -> tuple[list[TextRun], int]:
-    """Extract formatted runs plus any Word OMML (<m:oMath>) equation text."""
+    """Extract formatted runs including hyperlinks, smartTags, SDTs, and Word OMML (<m:oMath>)."""
     runs: list[TextRun] = []
     omath_count = 0
-    p_el = paragraph._element
+    container_tags = {qn("w:hyperlink"), qn("w:smartTag"), qn("w:fldSimple"), qn("w:sdt"), qn("w:sdtContent")}
 
-    for child in p_el.iterchildren():
-        if child.tag == qn("w:r"):
-            text_parts = [t.text for t in child.findall(qn("w:t")) if t.text]
-            if child.find(qn("w:tab")) is not None:
-                text_parts.append(" ")
-            txt = "".join(text_parts)
-            if not txt:
-                continue
-            rpr = child.find(qn("w:rPr"))
-            bold = False
-            italic = False
-            is_sub = False
-            is_sup = False
-            if rpr is not None:
-                b_el = rpr.find(qn("w:b"))
-                bold = b_el is not None and b_el.get(qn("w:val")) not in ("0", "false")
-                i_el = rpr.find(qn("w:i"))
-                italic = i_el is not None and i_el.get(qn("w:val")) not in ("0", "false")
-                va = rpr.find(qn("w:vertAlign"))
-                if va is not None:
-                    val = va.get(qn("w:val"))
-                    is_sub = val == "subscript"
-                    is_sup = val == "superscript"
-            runs.append(TextRun(text=txt, bold=bold, italic=italic, subscript=is_sub, superscript=is_sup))
-        elif child.tag in (f"{{{M_NS}}}oMath", f"{{{M_NS}}}oMathPara"):
-            omath_count += 1
-            math_txt = "".join(t.text for t in child.xpath(".//m:t", namespaces={"m": M_NS}) if t.text)
-            if math_txt.strip():
-                runs.append(TextRun(text=f" {math_txt.strip()} ", italic=True))
-        elif child.tag == qn("w:hyperlink"):
-            for hr in child.findall(qn("w:r")):
-                txt = "".join(t.text for t in hr.findall(qn("w:t")) if t.text)
-                if txt:
-                    runs.append(TextRun(text=txt))
+    def _walk(el) -> None:
+        nonlocal omath_count
+        for child in el.iterchildren():
+            if child.tag == qn("w:r"):
+                tr = _extract_run_element(child)
+                if tr is not None:
+                    runs.append(tr)
+            elif child.tag in (f"{{{M_NS}}}oMath", f"{{{M_NS}}}oMathPara"):
+                omath_count += 1
+                math_txt = "".join(t.text for t in child.xpath(".//m:t", namespaces={"m": M_NS}) if t.text)
+                if math_txt.strip():
+                    runs.append(TextRun(text=f" {math_txt.strip()} ", italic=True))
+            elif child.tag in container_tags:
+                _walk(child)
 
+    _walk(paragraph._element)
     if not runs and paragraph.text:
         runs.append(TextRun(text=paragraph.text))
     return _merge_adjacent_runs(runs), omath_count
@@ -361,9 +390,13 @@ def _parse_reference_line(line: str, seq_num: int) -> ReferenceItem:
         body_wo_doi = body
 
     year_m = re.search(r"\((\d{4})\)\.?$", body_wo_doi)
-    year = year_m.group(1) if year_m else "2024"
-    core = body_wo_doi[: year_m.start()].strip() if year_m else body_wo_doi
-
+    if year_m:
+        year = year_m.group(1)
+        core = body_wo_doi[: year_m.start()].strip()
+    else:
+        ym2 = re.search(r"(?:^|[.,\s(])((?:19|20)\d{2})(?:[.,)\s]|$)", body_wo_doi)
+        year = ym2.group(1) if ym2 else "2024"
+        core = body_wo_doi
     parts = [p.strip() for p in core.split(". ") if p.strip()]
     authors = parts[0] if len(parts) >= 1 else "Unknown"
     title = parts[1] if len(parts) >= 2 else core
@@ -438,15 +471,27 @@ class _ProtocolParserState:
             self.last_step = None
             return
 
-        if is_subheading:
-            sec_num = str(len(self.ms.protocol_sections) + 1)
-            clean_title = re.sub(r"^\d+(?:\.\d+)*\.?\s*", "", text).strip()
+        sub_heading_m = re.match(r"^(\d+\.\d+(?:\.\d+)?)\s+(.+)$", text)
+        all_bold = bool(runs) and all(r.bold or not r.text.strip() for r in runs)
+        looks_like_numbered_heading = bool(
+            sub_heading_m
+            and (
+                is_subheading
+                or (
+                    not text.endswith(".")
+                    and len(sub_heading_m.group(2).split()) <= 12
+                    and (all_bold or sub_heading_m.group(2)[:1].isupper())
+                )
+            )
+        )
+        if is_subheading or looks_like_numbered_heading:
+            sec_num = sub_heading_m.group(1) if sub_heading_m else str(len(self.ms.protocol_sections) + 1)
+            clean_title = sub_heading_m.group(2).strip() if sub_heading_m else re.sub(r"^\d+(?:\.\d+)*\.?\s*", "", text).strip()
             self.current_sec = ProtocolSection(number=sec_num, title=clean_title or text)
             self.ms.protocol_sections.append(self.current_sec)
             self.last_top_step = None
             self.last_step = None
             return
-
         subsub_m = re.match(r"^(\d+\.\d+\.\d+)\s+(.+)$", text)
         if subsub_m and self.last_top_step is not None:
             step_num = subsub_m.group(1)
@@ -519,7 +564,7 @@ def load_manuscript(input_path: Path, work_dir: Path | None = None) -> Manuscrip
         raise ValueError(f"Unsupported manuscript format '{ext}'. Expected .doc or .docx.")
 
     media_dir = (work_dir / "_media") if work_dir else None
-    track_changes, comments, extracted_media, docpr_alts = _inspect_ooxml_hazards(docx_path, media_dir=media_dir)
+    track_changes, comments, extracted_media, docpr_alts, footnotes = _inspect_ooxml_hazards(docx_path, media_dir=media_dir)
     doc = Document(str(docx_path))
     ms = Manuscript(
         title="Untitled Protocol Manuscript",
@@ -527,6 +572,7 @@ def load_manuscript(input_path: Path, work_dir: Path | None = None) -> Manuscrip
         source_filename=input_path.name,
         track_changes_count=track_changes,
         comments_count=comments,
+        footnotes=footnotes,
     )
 
     current_section = "PREAMBLE"
@@ -534,16 +580,37 @@ def load_manuscript(input_path: Path, work_dir: Path | None = None) -> Manuscrip
     fallback_paragraphs: list[list[TextRun]] = []
     seen_raw_ref_nums: set[int] = set()
 
+    def _unique_row_cells(row, seen_table_tc: set) -> list[str]:
+        vals: list[str] = []
+        seen_row_tc: set = set()
+        for cell in row.cells:
+            tc = cell._tc
+            if tc in seen_row_tc:
+                continue
+            seen_row_tc.add(tc)
+            if tc in seen_table_tc:
+                vals.append("")
+                continue
+            seen_table_tc.add(tc)
+            tc_pr = tc.tcPr
+            vmerge = tc_pr.find(qn("w:vMerge")) if tc_pr is not None else None
+            if vmerge is not None and vmerge.get(qn("w:val")) != "restart":
+                vals.append("")
+            else:
+                vals.append(cell.text.strip())
+        return vals
+
     for block in _iter_body_blocks(doc):
         if isinstance(block, Table):
             if len(block.rows) >= 2:
-                headers = [c.text.strip() for c in block.rows[0].cells]
+                seen_table_tc: set = set()
+                headers = _unique_row_cells(block.rows[0], seen_table_tc)
                 headers_lower = [h.lower() for h in headers]
                 if current_section == "MATERIALS" or (
                     "name" in headers_lower and ("company" in headers_lower or "catalog" in " ".join(headers_lower))
                 ):
                     for row in block.rows[1:]:
-                        vals = [c.text.strip() for c in row.cells]
+                        vals = _unique_row_cells(row, seen_table_tc)
                         if any(vals):
                             ms.materials.append(
                                 MaterialItem(
@@ -554,7 +621,7 @@ def load_manuscript(input_path: Path, work_dir: Path | None = None) -> Manuscrip
                                 )
                             )
                 else:
-                    rows_data = [[c.text.strip() for c in row.cells] for row in block.rows[1:]]
+                    rows_data = [_unique_row_cells(row, seen_table_tc) for row in block.rows[1:]]
                     if any(any(r) for r in rows_data):
                         t_idx = len(ms.tables) + 1
                         ms.tables.append(
@@ -591,10 +658,13 @@ def load_manuscript(input_path: Path, work_dir: Path | None = None) -> Manuscrip
             ms.keywords = [kw.strip() for kw in re.split(r"[,;]", kw_str) if kw.strip()]
             continue
 
-        alias = _match_section_alias(text, style_name)
-        if alias:
-            current_section = alias
-            continue
+        if style_name in ("endnote bibliography", "bibliography", "reference"):
+            current_section = "REFERENCES"
+        else:
+            alias = _match_section_alias(text, style_name)
+            if alias:
+                current_section = alias
+                continue
 
         # Exit single-block sections (Abstract/Summary/References) when a new Heading 1 starts
         if style_name in ("heading 1", "heading1") and current_section in ("ABSTRACT", "SUMMARY", "REFERENCES", "AUTHORS", "TITLE"):
@@ -603,9 +673,22 @@ def load_manuscript(input_path: Path, work_dir: Path | None = None) -> Manuscrip
         is_subheading = style_name.startswith("heading") and style_name not in ("heading 1", "heading1")
 
         if current_section == "PREAMBLE":
-            if ms.title == "Untitled Protocol Manuscript" and len(text) <= 220 and not text.lower().startswith("the template is designed"):
+            lower_t = text.lower()
+            is_wrapper_label = lower_t in (
+                "supplementary file",
+                "supplementary material",
+                "supplementary materials",
+                "supplementary data",
+                "supplementary information",
+            )
+            if (
+                ms.title == "Untitled Protocol Manuscript"
+                and len(text) <= 220
+                and not lower_t.startswith("the template is designed")
+                and not is_wrapper_label
+            ):
                 ms.title = text
-            elif "@" in text or text.lower().startswith(("correspondence", "corresponding author")):
+            elif "@" in text or re.match(r"^[*†‡§¶\s]*(?:correspondence|corresponding\s+author)\b", lower_t):
                 _consume_authors(ms, text)
             elif (
                 re.match(r"^(?:[1-9]\d*|[*†‡§¶])[:.\s]*(?=[A-Z])", text)
@@ -693,7 +776,7 @@ def _consume_metadata(ms: Manuscript, text: str) -> None:
 
 def _consume_authors(ms: Manuscript, text: str) -> None:
     lower = text.lower()
-    if lower.startswith(("correspondence", "corresponding author", "*correspondence")):
+    if re.match(r"^[*†‡§¶\s]*(?:correspondence|corresponding\s+author)\b", lower):
         em = re.search(r"([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})", text)
         email = em.group(1).strip() if em else ""
         if ms.authors:

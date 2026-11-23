@@ -341,3 +341,70 @@ def test_legacy_doc_conversion_via_word_com_if_available(tmp_path: Path) -> None
     assert res.manuscript.source_format == "doc"
     assert res.xml_check.well_formed is True
     assert res.xml_check.errors == []
+
+
+def test_real_world_hyperlinks_footnotes_merged_cells_and_units(tmp_path: Path) -> None:
+    from docx.oxml import OxmlElement
+
+    doc = Document()
+    doc.add_paragraph("Supplementary File")
+    doc.add_paragraph("Enhanced Isoprene Production Protocol")
+    doc.add_paragraph("Jane Doe1, John Smith1*")
+    doc.add_paragraph("1Department of Bioengineering, Example Institute")
+    p_corr = doc.add_paragraph("*Corresponding author: ")
+    hl = OxmlElement("w:hyperlink")
+    r_hl = OxmlElement("w:r")
+    t_hl = OxmlElement("w:t")
+    t_hl.text = "j.smith@example.edu"
+    r_hl.append(t_hl)
+    hl.append(r_hl)
+    p_corr._element.append(hl)
+
+    doc.add_heading("Materials and Methods", level=1)
+    doc.add_paragraph("2.1 Reagent Preparation")
+    doc.add_paragraph("2.1 Add 100 ml of SnCl2 solution（11,4% w/v）and 0.25g TeO2.")
+
+    tbl = doc.add_table(rows=3, cols=2)
+    tbl.cell(0, 0).text = "Stage"
+    tbl.cell(0, 1).text = "Action"
+    tbl.cell(1, 0).text = "Precipitation"
+    tbl.cell(1, 1).text = "Step A"
+    tbl.cell(2, 0).text = "Precipitation"
+    tbl.cell(2, 1).text = "Step B"
+    tbl.cell(1, 0).merge(tbl.cell(2, 0))
+
+    raw_docx = tmp_path / "pain_points.docx"
+    doc.save(raw_docx)
+
+    patched = tmp_path / "pain_points_fn.docx"
+    fn_xml = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        b'<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        b'<w:footnote w:id="1"><w:p><w:r><w:t>Footnote detail for reagent grade.</w:t></w:r></w:p></w:footnote>'
+        b"</w:footnotes>"
+    )
+    with zipfile.ZipFile(raw_docx, "r") as zin, zipfile.ZipFile(patched, "w") as zout:
+        for item in zin.infolist():
+            zout.writestr(item, zin.read(item.filename))
+        zout.writestr("word/footnotes.xml", fn_xml)
+
+    res = run_pipeline(patched, tmp_path / "out")
+    ms = res.manuscript
+    assert ms.title == "Enhanced Isoprene Production Protocol"
+    assert any(a.is_corresponding and a.email == "j.smith@example.edu" for a in ms.authors)
+    assert len(ms.protocol_sections) == 1
+    assert ms.protocol_sections[0].title == "Reagent Preparation"
+    assert ms.footnotes == ["Footnote detail for reagent grade."]
+    assert len(ms.tables) == 1
+    assert ms.tables[0].rows[1] == ["", "Step B"]
+
+    rule_ids = {f.rule_id for f in res.findings}
+    assert "JOVE-CORRESP-MISSING" not in rule_ids
+    assert "JOVE-FULLWIDTH-PUNCT" in rule_ids
+    assert "JOVE-LITER-CASE" in rule_ids
+    assert "JOVE-DECIMAL-COMMA" in rule_ids
+    assert "WORD-FOOTNOTES-PRESENT" in rule_ids
+    assert "100 mL" in res.html_article
+    assert "SnCl<sub>2</sub>" in res.jats_xml
+    assert "<fn-group>" in res.jats_xml
+    assert res.xml_check.errors == []

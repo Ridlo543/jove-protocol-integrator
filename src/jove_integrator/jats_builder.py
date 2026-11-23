@@ -402,6 +402,14 @@ def build_jats_xml(ms: Manuscript) -> str:
             f"{refs_xml}\n"
             "    </ref-list>"
         )
+    if ms.footnotes:
+        fn_items = "\n".join(
+            f'      <fn id="fn{idx}"><label>{idx}</label><p>{encode_scientific_xml(fn)}</p></fn>'
+            for idx, fn in enumerate(ms.footnotes, start=1)
+            if fn.strip()
+        )
+        if fn_items:
+            back_parts.append(f"    <fn-group>\n{fn_items}\n    </fn-group>")
 
     back_xml = "  <back>\n" + "\n".join(back_parts) + "\n  </back>\n" if back_parts else ""
 

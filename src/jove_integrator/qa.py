@@ -17,8 +17,11 @@ PLUSMINUS_RE = re.compile(r"(\d+(?:\.\d+)?(?:\s*[a-zA-Z°µΩ%]+)?)\s*\+/-\s*(\d
 LATIN_MICRO_RE = re.compile(r"(\d+(?:\.\d+)?)\s*u([LMgms])\b")
 GREEK_MU_UNIT_RE = re.compile(r"\u03bc([LMgms])\b")
 NO_SPACE_UNIT_RE = re.compile(
-    r"(\d+(?:\.\d+)?)(°C|µL|µM|µg|µm|µs|mL|mM|mg|kg|cm|mm|nm|GHz|MHz|kHz|Hz|min)\b"
+    r"(\d+(?:\.\d+)?)(°C|µL|µM|µg|µm|µs|mL|mM|mg|kg|cm|mm|nm|GHz|MHz|kHz|Hz|min|g|L)\b"
 )
+LITER_CASE_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*(ml|ul|nl|pl)\b")
+DECIMAL_COMMA_RE = re.compile(r"\b(\d+),(\d{1,2})\s*(%|(?:°C|µL|mL|mg|kg|cm|mm|nm|g|L|M|mM|µM|min|h|s)\b)")
+FULLWIDTH_PUNCT_MAP = {"\uff08": "(", "\uff09": ")", "\uff1a": ":", "\uff1b": ";", "\uff0c": ", "}
 CARET_SUP_RE = re.compile(r"\b(10)\^(-?\d+)\b")
 
 RPM_RE = re.compile(r"\b([\d,]+)\s*rpm\b", re.IGNORECASE)
@@ -41,7 +44,9 @@ AFFIL_ABBREV_RE = re.compile(r"\b(Dept\.|Univ\.|Inst\.|Lab\.|Med\.|Ctr\.)")
 SPECIES_RE = re.compile(
     r"\b([A-Z]\.\s+(?:coli|elegans|aureus|cerevisiae|subtilis)|Escherichia coli|Caenorhabditis elegans)\b"
 )
-CHEM_SUB_RE = re.compile(r"\b(H2O2|CO2|H2O|CaCl2|MgCl2|Na2HPO4|NH4Cl|S11|S21|S12|S22)\b")
+CHEM_SUB_RE = re.compile(
+    r"\b(H2O2|CO2|H2O|CaCl2|MgCl2|Na2HPO4|NH4Cl|SnCl2|TeO2|Na2CO3|NaHCO3|MgSO4|Na2SO4|FeCl3|CuSO4|KH2PO4|K2HPO4|NH4OH|H2SO4|H3PO4|HNO3|CH3COOH|S11|S21|S12|S22)\b"
+)
 
 
 def _split_run(
@@ -108,6 +113,20 @@ def _apply_deterministic_text_fixes(text: str, location: str, findings: list[QAF
                 repr(text),
                 "PMC genprac: Clean UTF-8 text",
                 strip_vals=False,
+            )
+
+    if any(fw in text for fw in FULLWIDTH_PUNCT_MAP):
+        before = text
+        for fw, repl in FULLWIDTH_PUNCT_MAP.items():
+            text = text.replace(fw, repl)
+        if text != before:
+            _record(
+                "JOVE-FULLWIDTH-PUNCT",
+                "Character Entities",
+                "Normalized fullwidth Unicode punctuation (e.g. （）) to standard ASCII punctuation.",
+                before,
+                text,
+                "PMC genprac: Clean UTF-8 punctuation",
             )
 
     if any(lig in text for lig in LIGATURE_MAP):
@@ -184,6 +203,20 @@ def _apply_deterministic_text_fixes(text: str, location: str, findings: list[QAF
                 before,
                 text,
                 "PMC genprac / JoVE SI Units",
+            )
+
+    if LITER_CASE_RE.search(text):
+        before = text
+        liter_map = {"ml": "mL", "ul": "µL", "nl": "nL", "pl": "pL"}
+        text = LITER_CASE_RE.sub(lambda m: f"{m.group(1)} {liter_map[m.group(2)]}", text)
+        if text != before:
+            _record(
+                "JOVE-LITER-CASE",
+                "SI Units & Formatting",
+                "Normalized lowercase liter unit (ml/ul) to standard SI capitalization (mL/µL).",
+                before,
+                text,
+                "JoVE Instructions for Authors: SI Units",
             )
 
     if NO_SPACE_UNIT_RE.search(text):
@@ -291,6 +324,24 @@ def _collect_review_warnings_in_text(text: str, location: str, findings: list[QA
                 auto_fixed=False,
                 confidence="heuristic",
                 suggested_query=f"In {location}, please confirm whether '{m.group(1)}' should use a Greek character (α/β/γ).",
+            )
+        )
+
+    for m in DECIMAL_COMMA_RE.finditer(text):
+        fixed_val = f"{m.group(1)}.{m.group(2)}{' ' if m.group(3) != '%' else ''}{m.group(3)}"
+        findings.append(
+            QAFinding(
+                rule_id="JOVE-DECIMAL-COMMA",
+                severity="warning",
+                category="SI Units & Formatting",
+                location=location,
+                message=f"European decimal comma '{m.group(0)}' detected; JoVE English manuscripts require decimal points.",
+                before=m.group(0),
+                after=fixed_val,
+                guideline_ref="JoVE Instructions for Authors: Numeric Formatting",
+                auto_fixed=False,
+                confidence="heuristic",
+                suggested_query=f"In {location}, please confirm '{m.group(0)}' should be formatted as '{fixed_val}'.",
             )
         )
 
@@ -479,6 +530,21 @@ def _check_metadata_and_xrefs(ms: Manuscript, findings: list[QAFinding]) -> None
                 auto_fixed=False,
                 confidence="heuristic",
                 suggested_query="Please verify all Word Equation Editor formulas render accurately in MathML/LaTeX.",
+            )
+        )
+
+    if ms.footnotes:
+        findings.append(
+            QAFinding(
+                rule_id="WORD-FOOTNOTES-PRESENT",
+                severity="warning",
+                category="Word OOXML Hygiene",
+                location="Footnotes",
+                message=f"Extracted {len(ms.footnotes)} Word footnote/endnote(s) into <fn-group>. JoVE prefers inline text or numbered references.",
+                guideline_ref="JoVE Instructions for Authors / PMC <fn-group>",
+                auto_fixed=False,
+                confidence="heuristic",
+                suggested_query="Please confirm whether Word footnotes/endnotes should be folded into body text or References.",
             )
         )
 

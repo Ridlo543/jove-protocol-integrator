@@ -101,6 +101,7 @@ def manuscript_from_dict(data: dict[str, Any]) -> Manuscript:
         native_list_items_count=int(data.get("native_list_items_count", 0)),
         omath_count=int(data.get("omath_count", 0)),
         duplicate_ref_numbers=list(data.get("duplicate_ref_numbers", [])),
+        footnotes=list(data.get("footnotes", [])),
     )
 
 
@@ -134,13 +135,17 @@ class RunStore:
                     pmc_checked_at TEXT,
                     pmc_result_json TEXT,
                     payload_json TEXT NOT NULL,
+                    owner_sid TEXT NOT NULL DEFAULT '',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
                 """
             )
+            cols = {r["name"] for r in conn.execute("PRAGMA table_info(runs)").fetchall()}
+            if "owner_sid" not in cols:
+                conn.execute("ALTER TABLE runs ADD COLUMN owner_sid TEXT NOT NULL DEFAULT ''")
 
-    def save_run(self, payload: dict[str, Any]) -> None:
+    def save_run(self, payload: dict[str, Any], owner_sid: str = "") -> None:
         now = _utc_now()
         counts = payload.get("summary_counts", {})
         pmc = payload.get("live_pmc")
@@ -150,16 +155,17 @@ class RunStore:
         pmc_json = json.dumps(pmc, ensure_ascii=False) if pmc else None
 
         with self._connect() as conn:
-            existing = conn.execute("SELECT created_at FROM runs WHERE run_id = ?", (payload["run_id"],)).fetchone()
+            existing = conn.execute("SELECT created_at, owner_sid FROM runs WHERE run_id = ?", (payload["run_id"],)).fetchone()
             created_at = existing["created_at"] if existing else now
+            effective_owner = existing["owner_sid"] if (existing and existing["owner_sid"]) else owner_sid
             conn.execute(
                 """
                 INSERT INTO runs (
                     run_id, title, source_filename, source_format,
                     fixed_count, warning_count, error_count,
                     dtd_valid, style_valid, pmc_checked_at, pmc_result_json,
-                    payload_json, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    payload_json, owner_sid, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(run_id) DO UPDATE SET
                     title = excluded.title,
                     source_filename = excluded.source_filename,
@@ -187,11 +193,11 @@ class RunStore:
                     pmc_at,
                     pmc_json,
                     json.dumps(payload, ensure_ascii=False),
+                    effective_owner,
                     created_at,
                     now,
                 ),
             )
-
     def update_pmc_result(self, run_id: str, pmc_dict: dict[str, Any]) -> None:
         now = _utc_now()
         with self._connect() as conn:
@@ -225,20 +231,39 @@ class RunStore:
                 return None
             return json.loads(row["payload_json"])
 
-    def list_runs(self, limit: int = 20) -> list[dict[str, Any]]:
+    def list_runs(self, limit: int = 20, owner_sid: str | None = None) -> list[dict[str, Any]]:
         with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT run_id, title, source_filename, source_format,
-                       fixed_count, warning_count, error_count,
-                       dtd_valid, style_valid, pmc_checked_at, updated_at
-                FROM runs
-                ORDER BY updated_at DESC
-                LIMIT ?
-                """,
-                (limit,),
-            ).fetchall()
+            if owner_sid is not None:
+                rows = conn.execute(
+                    """
+                    SELECT run_id, title, source_filename, source_format,
+                           fixed_count, warning_count, error_count,
+                           dtd_valid, style_valid, pmc_checked_at, updated_at
+                    FROM runs
+                    WHERE owner_sid = ? OR run_id LIKE 'sample-%'
+                    ORDER BY updated_at DESC
+                    LIMIT ?
+                    """,
+                    (owner_sid, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT run_id, title, source_filename, source_format,
+                           fixed_count, warning_count, error_count,
+                           dtd_valid, style_valid, pmc_checked_at, updated_at
+                    FROM runs
+                    ORDER BY updated_at DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
             return [dict(r) for r in rows]
+
+    def get_run_owner(self, run_id: str) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT owner_sid FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+            return row["owner_sid"] if row else None
 
     def delete_run(self, run_id: str) -> bool:
         with self._connect() as conn:

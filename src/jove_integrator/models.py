@@ -172,7 +172,7 @@ class Manuscript:
     native_list_items_count: int = 0
     omath_count: int = 0
     duplicate_ref_numbers: list[int] = field(default_factory=list)
-
+    footnotes: list[str] = field(default_factory=list)
 
 @dataclass
 class XMLCheckResult:

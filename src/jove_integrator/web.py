@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import os
 import re
+import secrets
 import shutil
 import time
 import uuid
@@ -53,6 +56,34 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 _PIPELINE_SEMAPHORE = asyncio.Semaphore(2)
+_SESSION_SECRET = os.getenv("JOVE_SESSION_SECRET") or secrets.token_hex(32)
+TURNSTILE_SITE_KEY = os.getenv("TURNSTILE_SITE_KEY", "").strip()
+TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "").strip()
+
+
+def _sign_sid(sid: str) -> str:
+    sig = hmac.new(_SESSION_SECRET.encode("utf-8"), sid.encode("utf-8"), hashlib.sha256).hexdigest()[:24]
+    return f"{sid}.{sig}"
+
+
+def _read_sid(request: Request) -> tuple[str, bool]:
+    raw = request.cookies.get("jove_sid", "")
+    if "." in raw:
+        sid, sig = raw.split(".", 1)
+        if SAFE_NAME_RE.match(sid) and hmac.compare_digest(_sign_sid(sid), f"{sid}.{sig}"):
+            return sid, False
+    return uuid.uuid4().hex[:16], True
+
+
+def _attach_sid_cookie(response, sid: str) -> None:
+    response.set_cookie(
+        key="jove_sid",
+        value=_sign_sid(sid),
+        httponly=True,
+        samesite="lax",
+        secure=IS_PROD,
+        max_age=86400 * 7,
+    )
 
 
 class SlidingWindowLimiter:
@@ -63,6 +94,10 @@ class SlidingWindowLimiter:
         if os.getenv("JOVE_RATE_LIMIT_ENABLED", "1") != "1":
             return
         now = time.monotonic()
+        if len(self._hits) > 2000:
+            stale_keys = [k for k, dq in self._hits.items() if not dq or dq[-1] < now - 3600]
+            for k in stale_keys:
+                del self._hits[k]
         q = self._hits[key]
         cutoff = now - window_sec
         while q and q[0] < cutoff:
@@ -81,7 +116,6 @@ class SlidingWindowLimiter:
 
 
 RATE_LIMITER = SlidingWindowLimiter()
-
 
 def _client_ip(request: Request) -> str:
     if TRUST_PROXY:
@@ -122,8 +156,8 @@ async def _save_upload_limited(upload: UploadFile, dest: Path, max_bytes: int, l
             out.write(chunk)
 
 
-def _save_and_prune(payload: dict[str, Any]) -> None:
-    STORE.save_run(payload)
+def _save_and_prune(payload: dict[str, Any], owner_sid: str = "") -> None:
+    STORE.save_run(payload, owner_sid=owner_sid)
     for stale_id in STORE.prune_old_runs(max_runs=MAX_STORED_RUNS):
         if SAFE_NAME_RE.match(stale_id):
             shutil.rmtree(RUNS_DIR / stale_id, ignore_errors=True)
@@ -255,25 +289,31 @@ async def healthz():
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, sample: str | None = None, run_id: str | None = None):
+    sid, is_new = _read_sid(request)
     initial_data = None
     if run_id:
         initial_data = STORE.get_run(run_id)
     elif sample and sample in SAMPLE_BY_ID:
         initial_data = _run_sample(sample)
-    return templates.TemplateResponse(
+    resp = templates.TemplateResponse(
         request=request,
         name="workbench.html",
         context={
             "samples": SAMPLE_CATALOG,
-            "recent_runs": STORE.list_runs(limit=12),
+            "recent_runs": STORE.list_runs(limit=12, owner_sid=sid),
             "initial_data": initial_data,
+            "turnstile_site_key": TURNSTILE_SITE_KEY,
         },
     )
+    if is_new:
+        _attach_sid_cookie(resp, sid)
+    return resp
 
 
 @app.get("/api/runs")
-async def list_runs():
-    return JSONResponse({"runs": STORE.list_runs(limit=25)})
+async def list_runs(request: Request):
+    sid, _ = _read_sid(request)
+    return JSONResponse({"runs": STORE.list_runs(limit=25, owner_sid=sid)})
 
 
 @app.get("/api/runs/{run_id}")
@@ -289,6 +329,12 @@ async def get_run(run_id: str):
 async def delete_run(request: Request, run_id: str):
     _enforce_rate(request, "mutate", limit=30, window_sec=60)
     run_dir = _validate_run_id(run_id)
+    sid, _ = _read_sid(request)
+    owner = STORE.get_run_owner(run_id)
+    if owner is None:
+        raise HTTPException(status_code=404, detail="Run not found.")
+    if owner and owner != sid:
+        raise HTTPException(status_code=403, detail="You can only delete runs created in your session.")
     deleted = STORE.delete_run(run_id)
     if run_dir.exists():
         shutil.rmtree(run_dir, ignore_errors=True)
@@ -297,25 +343,55 @@ async def delete_run(request: Request, run_id: str):
     return JSONResponse({"deleted": True, "run_id": run_id})
 
 
+async def _verify_turnstile_if_configured(token: str, remote_ip: str) -> None:
+    if not TURNSTILE_SECRET_KEY:
+        return
+    if not token:
+        raise HTTPException(status_code=400, detail="Verification challenge required.")
+    import httpx
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data={"secret": TURNSTILE_SECRET_KEY, "response": token, "remoteip": remote_ip},
+        )
+        if r.status_code != 200 or not r.json().get("success"):
+            raise HTTPException(status_code=403, detail="Verification challenge failed.")
+
+
 @app.post("/api/process")
 async def process_manuscript(
     request: Request,
     sample_id: str | None = Form(None),
     use_sample: bool = Form(False),
+    website: str = Form(""),
+    cf_turnstile_response: str = Form("", alias="cf-turnstile-response"),
     manuscript: UploadFile | None = File(None),
     figure: UploadFile | None = File(None),
 ):
     _enforce_rate(request, "process_min", limit=12, window_sec=60)
     _enforce_rate(request, "process_hr", limit=40, window_sec=3600)
+    if website.strip():
+        raise HTTPException(status_code=400, detail="Invalid submission.")
+
+    sid, is_new = _read_sid(request)
 
     if sample_id:
         async with _PIPELINE_SEMAPHORE:
-            return JSONResponse(await asyncio.to_thread(_run_sample, sample_id))
+            resp = JSONResponse(await asyncio.to_thread(_run_sample, sample_id))
+            if is_new:
+                _attach_sid_cookie(resp, sid)
+            return resp
     if use_sample and (manuscript is None or not manuscript.filename):
         async with _PIPELINE_SEMAPHORE:
-            return JSONResponse(await asyncio.to_thread(_run_sample, "rf-biosensor"))
+            resp = JSONResponse(await asyncio.to_thread(_run_sample, "rf-biosensor"))
+            if is_new:
+                _attach_sid_cookie(resp, sid)
+            return resp
     if manuscript is None or not manuscript.filename:
         raise HTTPException(status_code=400, detail="Select a .doc/.docx file or choose a sample manuscript.")
+
+    await _verify_turnstile_if_configured(cf_turnstile_response, _client_ip(request))
 
     ext = Path(manuscript.filename).suffix.lower()
     if ext not in (".doc", ".docx"):
@@ -354,8 +430,11 @@ async def process_manuscript(
         raise HTTPException(status_code=422, detail=f"Could not process manuscript: {exc}") from exc
 
     payload = _serialize_result(run_id, res)
-    _save_and_prune(payload)
-    return JSONResponse(payload)
+    _save_and_prune(payload, owner_sid=sid)
+    resp = JSONResponse(payload)
+    if is_new:
+        _attach_sid_cookie(resp, sid)
+    return resp
 
 def _merge_prior_fixed_findings(
     updated: dict[str, Any],
@@ -447,9 +526,14 @@ async def edit_manuscript_endpoint(request: Request, run_id: str, body: dict[str
     if not payload:
         raise HTTPException(status_code=404, detail="Run not found.")
 
+    if len(str(body.get("title", ""))) > 500 or len(str(body.get("summary", ""))) > 10000 or len(str(body.get("abstract", ""))) > 20000:
+        raise HTTPException(status_code=400, detail="Edited field exceeds maximum allowed length.")
+    affs = body.get("affiliations", [])
+    if isinstance(affs, list) and (len(affs) > 30 or any(len(str(a)) > 500 for a in affs)):
+        raise HTTPException(status_code=400, detail="Affiliation list exceeds maximum allowed size.")
+
     ms = manuscript_from_dict(payload["manuscript_data"])
     update_manuscript_fields(ms, body)
-
     stem = _safe_filename(Path(ms.source_filename or "manuscript").stem.replace("_messy", ""), "manuscript")
     search_dirs = [run_dir / "_upload", run_dir / "_converted" / "_media", SAMPLES_DIR]
     async with _PIPELINE_SEMAPHORE:
