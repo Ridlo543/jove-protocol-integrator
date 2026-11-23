@@ -193,6 +193,14 @@ SAMPLE_CATALOG = [
         "summary": "Unaccepted w:ins track changes, comments.xml, TNF-a homoglyphs, step gap 1.1 -> 1.3.",
     },
     {
+        "id": "natural-word",
+        "filename": "sample_natural_manuscript.docx",
+        "title": "PGM Recovery (Natural Word Format)",
+        "discipline": "Analytical Chemistry",
+        "profile": "Unstructured Word & Intl Units",
+        "summary": "Hyperlink email, † affil, embedded media (1200px), vMerge table, footnotes, 100 ml, 11,4%, （pH 1.2）.",
+    },
+    {
         "id": "clean-ready",
         "filename": "sample_clean_ready.docx",
         "title": "Standardized Two-Port SOLT Calibration",

@@ -192,6 +192,13 @@ def test_web_workbench_endpoints() -> None:
     assert p3["xml_check"]["errors"] == []
     assert p3["summary_counts"] == {"fixed": 0, "warnings": 0, "errors": 0}
 
+    r_s4 = client.post("/api/process", data={"sample_id": "natural-word"})
+    assert r_s4.status_code == 200
+    p4 = r_s4.json()
+    assert p4["xml_check"]["errors"] == []
+    assert p4["summary_counts"]["fixed"] >= 5
+    assert p4["summary_counts"]["warnings"] >= 3
+
     with SAMPLE_DOCX.open("rb") as f:
         r_upload = client.post(
             "/api/process",

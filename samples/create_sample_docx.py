@@ -623,6 +623,132 @@ def generate_clean_ready_docx(output_path: Path) -> Path:
     return output_path
 
 
+def generate_natural_figure(output_path: Path) -> Path:
+    """Generate a 1200x600 flowchart figure (intentionally below JoVE 1440px min width)."""
+    width, height = 1200, 600
+    img = Image.new("RGB", (width, height), "#FFFFFF")
+    draw = ImageDraw.Draw(img)
+    try:
+        font_title = ImageFont.truetype("arial.ttf", 26)
+        font_box = ImageFont.truetype("arial.ttf", 20)
+    except OSError:
+        font_title = ImageFont.load_default()
+        font_box = ImageFont.load_default()
+
+    draw.text((60, 36), "Figure 1: PGM Precipitation & Filtration Workflow", fill="#0F172A", font=font_title)
+    boxes = [
+        (60, 160, 360, 320, "1. Leachate\n(pH 1.2, HCl)"),
+        (450, 160, 750, 320, "2. SnCl2 + TeO2\nCo-Precipitation"),
+        (840, 160, 1140, 320, "3. 4,500 rpm Spin\n& H2O Rinse"),
+    ]
+    for x0, y0, x1, y1, label in boxes:
+        draw.rectangle([x0, y0, x1, y1], fill="#EFF6FF", outline="#1D4ED8", width=3)
+        draw.text((x0 + 24, y0 + 48), label, fill="#0F172A", font=font_box)
+    draw.line([(360, 240), (450, 240)], fill="#1E293B", width=4)
+    draw.line([(750, 240), (840, 240)], fill="#1E293B", width=4)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(output_path, format="PNG")
+    return output_path
+
+
+def generate_natural_manuscript_docx(output_path: Path) -> Path:
+    """Sample 4: Natural unstructured Word manuscript without synthetic METADATA/FIGURE tags."""
+    from docx.oxml import OxmlElement
+    from docx.shared import Inches
+
+    doc = Document()
+    doc.add_paragraph("Supplementary File")
+    doc.add_paragraph("Catalytic Recovery of Platinum-Group Metals from Spent Autocatalyst Leachate", style="Title")
+    doc.add_paragraph("Claire Moreau†, Lukas Weber1, Kenji Sato1*")
+    doc.add_paragraph("†Department of Analytical Chemistry, Lyon Institute of Technology")
+    doc.add_paragraph("1Institute for Sustainable Metallurgy, Zurich")
+
+    p_corr = doc.add_paragraph("*Corresponding author: ")
+    hl = OxmlElement("w:hyperlink")
+    r_hl = OxmlElement("w:r")
+    t_hl = OxmlElement("w:t")
+    t_hl.text = "k.sato@ism-zurich.example"
+    r_hl.append(t_hl)
+    hl.append(r_hl)
+    p_corr._element.append(hl)
+
+    doc.add_heading("Abstract", level=1)
+    doc.add_paragraph(
+        "Selective recovery of palladium, platinum, and rhodium from acidic chloride leachates remains "
+        "challenging in the presence of excess base metals. Here we describe a tellurium-assisted "
+        "co-precipitation protocol using stannous chloride reduction at ambient pressure. Following "
+        "acidification and reagent addition, quantitative precipitation is achieved within 30 min, "
+        "yielding a compact precipitate suitable for gravimetric and ICP-OES quantification (Figure 1). "
+        "This workflow builds on prior hydrometallurgical separation studies (Moreau, 2023) and "
+        "provides reproducible recovery across spent automotive catalyst batches without organic "
+        "solvent extraction or high-temperature smelting steps."
+    )
+
+    doc.add_heading("1. Introduction", level=1)
+    doc.add_paragraph(
+        "Tellurium co-precipitation isolates trace PGMs from sodium-rich chloride media（pH 1.2）"
+        "using SnCl2 and TeO2 carriers (Moreau, 2023; Weber, 2024)."
+    )
+
+    doc.add_heading("Materials and Methods", level=1)
+    doc.add_paragraph("2.1 Reagent Preparation")
+    doc.add_paragraph("2.1.1 Dissolve 11,4% SnCl2 in 100 ml of 37% HCl and add 0.25g TeO2.")
+    doc.add_paragraph("2.2 Precipitation and Filtration")
+    doc.add_paragraph("2.2.1 Spin suspension at 4,500 rpm for 10min at 22°C (Figure 1).")
+
+    tbl = doc.add_table(rows=3, cols=3)
+    tbl.cell(0, 0).text = "Stage"
+    tbl.cell(0, 1).text = "Operation"
+    tbl.cell(0, 2).text = "Target"
+    tbl.cell(1, 0).text = "Precipitation"
+    tbl.cell(1, 1).text = "Add SnCl2 + TeO2 carrier"
+    tbl.cell(1, 2).text = "Pd / Pt / Rh"
+    tbl.cell(2, 0).text = "Precipitation"
+    tbl.cell(2, 1).text = "Rinse precipitate with 50 ml H2O"
+    tbl.cell(2, 2).text = "< 0.1% Cl"
+    tbl.cell(1, 0).merge(tbl.cell(2, 0))
+
+    fig_tmp = output_path.parent / "_tmp_fig4.png"
+    generate_natural_figure(fig_tmp)
+    p_img = doc.add_paragraph()
+    p_img.add_run().add_picture(str(fig_tmp), width=Inches(5.5))
+    fig_tmp.unlink(missing_ok=True)
+
+    doc.add_heading("References", level=1)
+    doc.add_paragraph(
+        "1.\tMoreau, C. 2023. Hydrometallurgical recovery of PGMs. J. Clean. Prod. 412, 137401. "
+        "DOI: 10.1016/j.jclepro.2023.137401"
+    )
+    doc.add_paragraph(
+        "1.\tWeber, L. 2024. Tellurium co-precipitation kinetics. Hydrometallurgy 224, 106210. "
+        "DOI: 10.1016/j.hydromet.2024.106210"
+    )
+
+    raw_path = output_path.with_suffix(".tmp.docx")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(raw_path)
+
+    fn_xml = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        b'<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        b'<w:footnote w:id="1"><w:p><w:r><w:t>Analytical grade reagents (ACS >= 99.5%) were used throughout.</w:t></w:r></w:p></w:footnote>'
+        b"</w:footnotes>"
+    )
+    with zipfile.ZipFile(raw_path, "r") as zin, zipfile.ZipFile(output_path, "w") as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "word/document.xml":
+                xml_str = data.decode("utf-8").replace(
+                    'descr=""',
+                    'descr="Flowchart of PGM precipitation and filtration stages."',
+                )
+                data = xml_str.encode("utf-8")
+            zout.writestr(item, data)
+        zout.writestr("word/footnotes.xml", fn_xml)
+    raw_path.unlink(missing_ok=True)
+    return output_path
+
+
 if __name__ == "__main__":
     base = Path(__file__).resolve().parent
     print("Generated:", generate_sample_figure(base / "fig1_raw.png"))
@@ -630,3 +756,4 @@ if __name__ == "__main__":
     print("Generated:", generate_messy_sample_docx(base / "sample_protocol_messy.docx"))
     print("Generated:", generate_coip_hazards_docx(base / "sample_coip_hazards.docx"))
     print("Generated:", generate_clean_ready_docx(base / "sample_clean_ready.docx"))
+    print("Generated:", generate_natural_manuscript_docx(base / "sample_natural_manuscript.docx"))
